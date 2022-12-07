@@ -38,7 +38,7 @@ def generale_xml_file_data(elements: Element):
         return xml_file 
     
     except Exception as e:
-        print(f"Error saving file {file} {e}")
+        print(f"Error creating xml file data {e}")
 
 
 try:
