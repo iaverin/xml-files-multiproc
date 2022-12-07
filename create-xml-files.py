@@ -4,10 +4,13 @@ import uuid
 import typing
 import io
 import zipfile
+import os
 
 XML_MAX_OBJECTS = 10 
 XML_FILES_IN_ZIP = 100
 ZIP_FILES = 50 
+ZIP_DIRECTORY = "zip-files"
+
 
 def create_xml_elements() -> ElementTree:
     def random_string():
@@ -42,10 +45,21 @@ def generale_xml_file_data(elements: Element):
         print(f"Error creating xml file data {e}")
 
 
-ZIP_FOLDER = "zip-files"
+def create_dir(dir):
+    try:
+        os.mkdir(dir)
+    except FileExistsError: 
+        return True
+    except Exception as e:
+        print(f"Could not create directory {dir}. \n Error: {e}")
+        return False
+    return True
+
+if not create_dir(ZIP_DIRECTORY):
+    exit()
 
 for zip_file_index in range(1,ZIP_FILES+1):
-    zip_file_name = f"{ZIP_FOLDER}/{str(zip_file_index)}.zip"
+    zip_file_name = f"{ZIP_DIRECTORY}/{str(zip_file_index)}.zip"
     
     try:
         with zipfile.ZipFile(zip_file_name,"w") as z:
@@ -55,9 +69,6 @@ for zip_file_index in range(1,ZIP_FILES+1):
         
     except Exception as e:
         print("Error saving zip file... ", e)
-
-
-
 
 
 
