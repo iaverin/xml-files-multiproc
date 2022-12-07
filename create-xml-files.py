@@ -7,6 +7,7 @@ import zipfile
 
 XML_MAX_OBJECTS = 10 
 XML_FILES_IN_ZIP = 100
+ZIP_FILES = 50 
 
 def create_xml_elements() -> ElementTree:
     def random_string():
@@ -41,14 +42,19 @@ def generale_xml_file_data(elements: Element):
         print(f"Error creating xml file data {e}")
 
 
-try:
-    with zipfile.ZipFile("xml-files.zip","w") as z:
-        for i in range (1, XML_FILES_IN_ZIP+1):
-            z.writestr(zipfile.ZipInfo(f"{i}.xml"), generale_xml_file_data(create_xml_elements()))
-    print("Zip file saved...")
+ZIP_FOLDER = "zip-files"
+
+for zip_file_index in range(1,ZIP_FILES+1):
+    zip_file_name = f"{ZIP_FOLDER}/{str(zip_file_index)}.zip"
+    
+    try:
+        with zipfile.ZipFile(zip_file_name,"w") as z:
+            for i in range (1, XML_FILES_IN_ZIP+1):
+                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generale_xml_file_data(create_xml_elements()))
+        print(f"created {zip_file_name}...")
         
-except Exception as e:
-    print("Error", e)
+    except Exception as e:
+        print("Error saving zip file... ", e)
 
 
 
