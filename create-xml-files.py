@@ -6,7 +6,7 @@ import io
 import zipfile
 
 XML_MAX_OBJECTS = 10 
-
+XML_FILES_IN_ZIP = 100
 
 def create_xml_elements() -> ElementTree:
     def random_string():
@@ -43,7 +43,7 @@ def generale_xml_file_data(elements: Element):
 
 try:
     with zipfile.ZipFile("xml-files.zip","w") as z:
-        for i in range (1, 101):
+        for i in range (1, XML_FILES_IN_ZIP+1):
             z.writestr(zipfile.ZipInfo(f"{i}.xml"), generale_xml_file_data(create_xml_elements()))
     print("Zip file saved...")
         
