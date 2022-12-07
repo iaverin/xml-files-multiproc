@@ -30,7 +30,7 @@ def create_xml_elements() -> ElementTree:
     root.append(create_objects())
     return root
 
-def generale_xml_file_data(elements: Element):
+def generate_xml_file_data(elements: Element):
     f = io.BytesIO()
     tree = ElementTree(element=elements)
     indent(tree)
@@ -64,7 +64,7 @@ for zip_file_index in range(1,ZIP_FILES+1):
     try:
         with zipfile.ZipFile(zip_file_name,"w") as z:
             for i in range (1, XML_FILES_IN_ZIP+1):
-                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generale_xml_file_data(create_xml_elements()))
+                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_elements()))
         print(f"created {zip_file_name}...")
         
     except Exception as e:
