@@ -30,7 +30,7 @@ def create_xml_elements() -> ElementTree:
     root.append(create_objects())
     return root
 
-def generate_xml_file_data(elements: Element):
+def generate_xml_file_data(elements: Element) -> bytes:
     f = io.BytesIO()
     tree = ElementTree(element=elements)
     indent(tree)
@@ -45,7 +45,7 @@ def generate_xml_file_data(elements: Element):
         print(f"Error creating xml file data {e}")
 
 
-def create_dir(dir):
+def create_dir(dir) -> bool:
     try:
         os.mkdir(dir)
         return True
