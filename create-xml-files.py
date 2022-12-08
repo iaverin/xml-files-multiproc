@@ -30,9 +30,9 @@ def create_xml_tree() -> ElementTree:
     indent(tree)
     return tree
 
-def generate_xml_file_data(tree: ElementTree) -> bytes:
-    f = io.BytesIO()
-    tree.write(f)
+def generate_xml_file_data(tree: ElementTree) -> str:
+    f = io.StringIO()
+    tree.write(f, encoding="unicode")
     f.seek(0)
     xml_file = f.read() 
     f.close()
