@@ -48,12 +48,12 @@ def generate_xml_file_data(elements: Element):
 def create_dir(dir):
     try:
         os.mkdir(dir)
+        return True
     except FileExistsError: 
         return True
-    except Exception as e:
+    except OSError as e:
         print(f"Could not create directory {dir}. \n Error: {e}")
         return False
-    return True
 
 if not create_dir(ZIP_DIRECTORY):
     exit()
@@ -66,9 +66,8 @@ for zip_file_index in range(1,ZIP_FILES+1):
             for i in range (1, XML_FILES_IN_ZIP+1):
                 z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_elements()))
         print(f"created {zip_file_name}...")
-        
-    except Exception as e:
-        print("Error saving zip file... ", e)
+    except OSError as e:
+        print(f"Error saving zip file. \n Error: {e}")
 
 
 
