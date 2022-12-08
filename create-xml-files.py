@@ -69,7 +69,7 @@ if __name__ == "__main__":
     try:
         number_of_created_zip_files = create_zip_files(MAX_OBJECTS_IN_XML, XML_FILES_IN_ZIP, ZIP_FILES, ZIP_DIRECTORY, lambda x: print(f"Created zip file {x}"))
     except OSError as e:
-            print(f"Error saving zip file. \n Error: {e}")
+        print(f"Error saving zip file. \n Error: {e}")
     
     if number_of_created_zip_files != ZIP_FILES:
         print(f"Not all zip files was created. Expected {ZIP_FILES}. Created {number_of_created_zip_files}")
