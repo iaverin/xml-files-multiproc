@@ -21,27 +21,22 @@ def create_objects() -> Element:
         objects.append(Element("object", {"name": random_string()}))
     return objects    
 
-def create_xml_elements() -> ElementTree:
+def create_xml_tree() -> ElementTree:
     root = Element("root")
     root.append(Element("var", attrib={"name":"id", "value" : random_string()}))
     root.append(Element("var", attrib={"name":"level", "value" : str(random.randrange(1,101))}))
     root.append(create_objects())
-    return root
-
-def generate_xml_file_data(elements: Element) -> bytes:
-    f = io.BytesIO()
-    tree = ElementTree(element=elements)
+    tree = ElementTree(root)
     indent(tree)
-    try:
-        tree.write(f)
-        f.seek(0)
-        xml_file = f.read() 
-        f.close()
-        return xml_file 
-    
-    except Exception as e:
-        print(f"Error creating xml file data {e}")
+    return tree
 
+def generate_xml_file_data(tree: ElementTree) -> bytes:
+    f = io.BytesIO()
+    tree.write(f)
+    f.seek(0)
+    xml_file = f.read() 
+    f.close()
+    return xml_file 
 
 def create_dir(dir) -> bool:
     try:
@@ -62,7 +57,7 @@ for zip_file_index in range(1,ZIP_FILES+1):
     try:
         with zipfile.ZipFile(zip_file_name,"w") as z:
             for i in range (1, XML_FILES_IN_ZIP+1):
-                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_elements()))
+                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_tree()))
         print(f"created {zip_file_name}...")
     except OSError as e:
         print(f"Error saving zip file. \n Error: {e}")
