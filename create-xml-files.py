@@ -1,10 +1,10 @@
-from xml.etree.ElementTree import ElementTree, SubElement, Element, dump, indent
+import io
+import os
 import random
 import uuid
-from typing import Callable
-import io
+import xml.etree.ElementTree as ET
 import zipfile
-import os
+from typing import Callable
 
 XML_MAX_OBJECTS = 10 
 XML_FILES_IN_ZIP = 100
@@ -14,23 +14,23 @@ ZIP_DIRECTORY = "zip-files"
 def random_string() -> str:
     return str(uuid.uuid4())
 
-def create_objects() -> Element:
+def create_objects() -> ET.Element:
     objects_num = random.randrange(1, XML_MAX_OBJECTS+1)
-    objects = Element("objects")
+    objects = ET.Element("objects")
     for i in range(0, objects_num):
-        objects.append(Element("object", {"name": random_string()}))
+        objects.append(ET.Element("object", {"name": random_string()}))
     return objects    
 
-def create_xml_tree() -> ElementTree:
-    root = Element("root")
-    root.append(Element("var", attrib={"name":"id", "value" : random_string()}))
-    root.append(Element("var", attrib={"name":"level", "value" : str(random.randrange(1,101))}))
+def create_xml_tree() -> ET.ElementTree:
+    root = ET.Element("root")
+    root.append(ET.Element("var", attrib={"name":"id", "value" : random_string()}))
+    root.append(ET.Element("var", attrib={"name":"level", "value" : str(random.randrange(1,101))}))
     root.append(create_objects())
-    tree = ElementTree(root)
-    indent(tree)
+    tree = ET.ElementTree(root)
+    ET.indent(tree)
     return tree
 
-def generate_xml_file_data(tree: ElementTree) -> str:
+def generate_xml_file_data(tree: ET.ElementTree) -> str:
     f = io.StringIO()
     tree.write(f, encoding="unicode")
     f.seek(0)
