@@ -11,22 +11,20 @@ XML_FILES_IN_ZIP = 100
 ZIP_FILES = 50 
 ZIP_DIRECTORY = "zip-files"
 
+def random_string() -> str:
+    return str(uuid.uuid4())
+
+def create_objects() -> Element:
+    objects_num = random.randrange(1, XML_MAX_OBJECTS+1)
+    objects = Element("objects")
+    for i in range(0, objects_num):
+        objects.append(Element("object", {"name": random_string()}))
+    return objects    
 
 def create_xml_elements() -> ElementTree:
-    def random_string():
-        return str(uuid.uuid4())
-
     root = Element("root")
     root.append(Element("var", attrib={"name":"id", "value" : random_string()}))
     root.append(Element("var", attrib={"name":"level", "value" : str(random.randrange(1,101))}))
-
-    def create_objects():
-        objects_num = random.randrange(1, XML_MAX_OBJECTS+1)
-        objects = Element("objects")
-        for i in range(0, objects_num):
-            objects.append(Element("object", {"name": random_string()}))
-        return objects    
-
     root.append(create_objects())
     return root
 
