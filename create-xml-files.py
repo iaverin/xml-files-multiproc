@@ -1,7 +1,7 @@
 from xml.etree.ElementTree import ElementTree, SubElement, Element, dump, indent
 import random
 import uuid
-import typing
+from typing import Callable
 import io
 import zipfile
 import os
@@ -48,17 +48,18 @@ def create_dir(dir) -> bool:
         print(f"Could not create directory {dir}. \n Error: {e}")
         return False
 
-def create_zip_files(xml_files_in_zip, number_zip_files,  zip_files_dir):
+def create_zip_files(xml_files_in_zip: int, number_zip_files: int,  zip_files_dir: int, log_created_file: Callable = None) -> int:
+    zip_files_created = 0
     for zip_file_index in range(1,number_zip_files+1):
         zip_file_name = f"{zip_files_dir}/{str(zip_file_index)}.zip"
-    
-        try:
-            with zipfile.ZipFile(zip_file_name,"w") as z:
-                for i in range (1, xml_files_in_zip+1):
-                    z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_tree()))
-            print(f"created {zip_file_name}...")
-        except OSError as e:
-            print(f"Error saving zip file. \n Error: {e}")
+        with zipfile.ZipFile(zip_file_name,"w") as z:
+            for i in range (1, xml_files_in_zip+1):
+                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_tree()))
+            zip_files_created += 1
+        if log_created_file:
+            log_created_file(f"{zip_file_name}")
+    return zip_files_created
+        
 
 if __name__ == "__main__":
     if not create_dir(ZIP_DIRECTORY):
