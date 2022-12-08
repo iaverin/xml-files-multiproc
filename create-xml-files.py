@@ -48,19 +48,22 @@ def create_dir(dir) -> bool:
         print(f"Could not create directory {dir}. \n Error: {e}")
         return False
 
-if not create_dir(ZIP_DIRECTORY):
-    exit()
-
-for zip_file_index in range(1,ZIP_FILES+1):
-    zip_file_name = f"{ZIP_DIRECTORY}/{str(zip_file_index)}.zip"
+def create_zip_files(xml_files_in_zip, number_zip_files,  zip_files_dir):
+    for zip_file_index in range(1,number_zip_files+1):
+        zip_file_name = f"{zip_files_dir}/{str(zip_file_index)}.zip"
     
-    try:
-        with zipfile.ZipFile(zip_file_name,"w") as z:
-            for i in range (1, XML_FILES_IN_ZIP+1):
-                z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_tree()))
-        print(f"created {zip_file_name}...")
-    except OSError as e:
-        print(f"Error saving zip file. \n Error: {e}")
+        try:
+            with zipfile.ZipFile(zip_file_name,"w") as z:
+                for i in range (1, xml_files_in_zip+1):
+                    z.writestr(zipfile.ZipInfo(f"{i}.xml"), generate_xml_file_data(create_xml_tree()))
+            print(f"created {zip_file_name}...")
+        except OSError as e:
+            print(f"Error saving zip file. \n Error: {e}")
+
+if __name__ == "__main__":
+    if not create_dir(ZIP_DIRECTORY):
+        exit()
+    create_zip_files(XML_FILES_IN_ZIP, ZIP_FILES, ZIP_DIRECTORY)
 
 
 
