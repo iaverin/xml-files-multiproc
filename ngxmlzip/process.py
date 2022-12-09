@@ -94,9 +94,9 @@ def append_csv_file_type_2(csv_file: str, data: ParsedXMLData, delimiter=","):
             writer.writerow([data.id, object_name])
 
 
-def run(zip_dir):
-    create_csv_file_type_1("csv_file_1.csv")
-    create_csv_file_type_2("csv_file_2.csv")
+def run(zip_dir, csv_file_1, csv_file_2):
+    create_csv_file_type_1(csv_file_1)
+    create_csv_file_type_2(csv_file_2)
 
     zip_files = get_zip_files(f"{zip_dir}/*.zip")
     for zip_file in zip_files:
@@ -107,8 +107,8 @@ def run(zip_dir):
                 xml_data = xml_from_zip(zip, xml_file)
                 parsed_xml_data = parse_xml_file(xml_data)
                 # print("XML data", parsed_xml_data)
-                append_csv_file_type_1("csv_file_1.csv", parsed_xml_data)
-                append_csv_file_type_2("csv_file_2.csv", parsed_xml_data)
+                append_csv_file_type_1(csv_file_1, parsed_xml_data)
+                append_csv_file_type_2(csv_file_2, parsed_xml_data)
 
 
 if __name__ == "__main__":
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     profiler = cProfile.Profile()
     profiler.enable()
-    run(zip_dir)
+    run(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
     profiler.disable()
     stats = pstats.Stats(profiler).sort_stats("cumtime")
     stats.print_stats()

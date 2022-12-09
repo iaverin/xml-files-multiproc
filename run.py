@@ -7,7 +7,8 @@ MAX_OBJECTS_IN_XML = 10
 XML_FILES_IN_ZIP = 100
 ZIP_FILES = 50
 ZIP_DIRECTORY = "zip-files"
-
+CSV_FILE_1 = "csv_file_1.csv"
+CSV_FILE_2 = "csv_file_2.csv"
 
 # if __name__ == "__main__":
 #     print(ZIP_DIRECTORY)
@@ -37,6 +38,6 @@ if __name__ == "__main__":
     
     print(f"All of {ZIP_FILES} zip files created in {ZIP_DIRECTORY}")
     
-    process.run(ZIP_DIRECTORY)
+    process.run(ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2)
 
 
