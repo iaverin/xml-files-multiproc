@@ -97,17 +97,18 @@ if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
 else:
     zip_dir = f"{ZIP_DIRECTORY}"
 
-zip_files = get_zip_files(f"{zip_dir}/*.zip")
-zip_file = zip_files[0]
-xml_file = next(get_xml_files(zip_file))
-
-with zipfile.ZipFile(zip_file, mode="r") as zip:
-    xml_data = xml_from_zip(zip, xml_file)
-    parsed_xml_data = parse_xml_file(xml_data)
-    print("XML data", parsed_xml_data)
-
 create_csv_file_type_1("csv_file_1.csv")
 create_csv_file_type_2("csv_file_2.csv")
 
-append_csv_file_type_1("csv_file_1.csv", parsed_xml_data)
-append_csv_file_type_2("csv_file_2.csv", parsed_xml_data)
+zip_files = get_zip_files(f"{zip_dir}/*.zip")
+for zip_file in zip_files:
+    xml_files = get_xml_files(zip_file)
+    for xml_file in xml_files:
+        print(f"Zip file {zip_file}. XML file {xml_file}")
+        with zipfile.ZipFile(zip_file, mode="r") as zip:
+            xml_data = xml_from_zip(zip, xml_file)
+            parsed_xml_data = parse_xml_file(xml_data)
+            # print("XML data", parsed_xml_data)
+
+            append_csv_file_type_1("csv_file_1.csv", parsed_xml_data)
+            append_csv_file_type_2("csv_file_2.csv", parsed_xml_data)
