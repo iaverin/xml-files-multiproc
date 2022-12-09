@@ -1,6 +1,5 @@
 from typing import List, Iterable, Iterator, Generator
 import glob
-from create import ZIP_DIRECTORY
 import zipfile
 import xml.etree.ElementTree as ET
 import io
@@ -95,12 +94,7 @@ def append_csv_file_type_2(csv_file: str, data: ParsedXMLData, delimiter=","):
             writer.writerow([data.id, object_name])
 
 
-def run():
-    if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
-        zip_dir = f"../{ZIP_DIRECTORY}"
-    else:
-        zip_dir = f"{ZIP_DIRECTORY}"
-
+def run(zip_dir):
     create_csv_file_type_1("csv_file_1.csv")
     create_csv_file_type_2("csv_file_2.csv")
 
@@ -119,9 +113,16 @@ def run():
 
 if __name__ == "__main__":
     # cProfile.run('run()')
+    ZIP_DIRECTORY = 'zip-files'
+
+    if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
+        zip_dir = f"../{ZIP_DIRECTORY}"
+    else:
+        zip_dir = f"{ZIP_DIRECTORY}"
+
     profiler = cProfile.Profile()
     profiler.enable()
-    run()
+    run(zip_dir)
     profiler.disable()
     stats = pstats.Stats(profiler).sort_stats("cumtime")
     stats.print_stats()

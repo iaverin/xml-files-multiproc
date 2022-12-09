@@ -6,11 +6,6 @@ import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable, Any
 
-MAX_OBJECTS_IN_XML = 10
-XML_FILES_IN_ZIP = 100
-ZIP_FILES = 50
-ZIP_DIRECTORY = "zip-files"
-
 
 def random_string() -> str:
     return str(uuid.uuid4())
@@ -85,6 +80,11 @@ def create_zip_files(
 
 
 if __name__ == "__main__":
+    MAX_OBJECTS_IN_XML = 10
+    XML_FILES_IN_ZIP = 100
+    ZIP_FILES = 50
+    ZIP_DIRECTORY = "zip-files"
+
     if not create_dir(ZIP_DIRECTORY):
         exit()
 
