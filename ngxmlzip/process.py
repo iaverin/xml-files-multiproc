@@ -10,6 +10,7 @@ import csv
 import cProfile
 import pstats
 
+
 def process(x):
     print("ok")
 
@@ -93,6 +94,7 @@ def append_csv_file_type_2(csv_file: str, data: ParsedXMLData, delimiter=","):
         for object_name in data.object_names:
             writer.writerow([data.id, object_name])
 
+
 def run():
     if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
         zip_dir = f"../{ZIP_DIRECTORY}"
@@ -114,13 +116,12 @@ def run():
                 append_csv_file_type_1("csv_file_1.csv", parsed_xml_data)
                 append_csv_file_type_2("csv_file_2.csv", parsed_xml_data)
 
+
 if __name__ == "__main__":
     # cProfile.run('run()')
     profiler = cProfile.Profile()
     profiler.enable()
     run()
     profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats = pstats.Stats(profiler).sort_stats("cumtime")
     stats.print_stats()
-
-    
