@@ -48,7 +48,6 @@ class ParsedXMLData:
 
 def parse_xml_file(xml_file_data) -> ParsedXMLData:
     root = ET.fromstring(xml_file_data)
-    print(root.tag)
 
     id = ""
     level = ""

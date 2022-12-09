@@ -10,12 +10,9 @@ ZIP_DIRECTORY = "zip-files"
 CSV_FILE_1 = "csv_file_1.csv"
 CSV_FILE_2 = "csv_file_2.csv"
 
-# if __name__ == "__main__":
-#     print(ZIP_DIRECTORY)
-#     process.process(1)
 
 if __name__ == "__main__":
-    if not  create.create_dir(ZIP_DIRECTORY):
+    if not create.create_dir(ZIP_DIRECTORY):
         exit()
 
     number_of_created_zip_files = 0
@@ -35,9 +32,7 @@ if __name__ == "__main__":
             f"Not all zip files was created. Expected {ZIP_FILES}. Created {number_of_created_zip_files}"
         )
         exit()
-    
+
     print(f"All of {ZIP_FILES} zip files created in {ZIP_DIRECTORY}")
-    
+
     process.run(ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2)
-
-
