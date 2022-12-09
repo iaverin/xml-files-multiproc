@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import io
 import os
 from dataclasses import dataclass
+import csv
 
 
 def process(x):
@@ -50,7 +51,7 @@ def parse_xml_file(xml_file_data) -> ParsedXMLData:
     id = ""
     level = ""
     object_names = list()
-    
+
     for child in root:
         if child.tag == "var" and child.attrib.get("name") == "id":
             id = child.attrib.get("value", "")
@@ -67,6 +68,30 @@ def parse_xml_file(xml_file_data) -> ParsedXMLData:
     return parsed_data
 
 
+def create_csv_file_type_1(csv_file: str, delimiter=','):
+    with open(csv_file, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile, delimiter=delimiter)
+        writer.writerow(["id", "level"])
+
+
+def create_csv_file_type_2(csv_file: str, delimiter=','):
+    with open(csv_file, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile, delimiter=delimiter)
+        writer.writerow(["id", "object_name"])
+
+
+def append_csv_file_type_1(csv_file: str, data: ParsedXMLData, delimiter =","):
+    with open(csv_file, "a", newline="") as csvfile:
+        writer = csv.writer(csvfile, delimiter=delimiter)
+        writer.writerow([data.id, data.level])
+
+def append_csv_file_type_2(csv_file: str, data: ParsedXMLData, delimiter =","):
+    with open(csv_file, "a", newline="") as csvfile:
+        writer = csv.writer(csvfile, delimiter=delimiter)
+        for object_name in data.object_names:
+            writer.writerow([data.id, object_name])
+
+
 if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
     zip_dir = f"../{ZIP_DIRECTORY}"
 else:
@@ -78,5 +103,11 @@ xml_file = next(get_xml_files(zip_file))
 
 with zipfile.ZipFile(zip_file, mode="r") as zip:
     xml_data = xml_from_zip(zip, xml_file)
-    print("XML data", parse_xml_file(xml_data))
+    parsed_xml_data = parse_xml_file(xml_data)
+    print("XML data", parsed_xml_data)
 
+create_csv_file_type_1("csv_file_1.csv")
+create_csv_file_type_2("csv_file_2.csv")
+
+append_csv_file_type_1("csv_file_1.csv", parsed_xml_data)
+append_csv_file_type_2("csv_file_2.csv", parsed_xml_data)
