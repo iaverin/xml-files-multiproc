@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import csv
 import cProfile
 import pstats
+import multiprocessing
 
 
 def process(x):
@@ -110,10 +111,32 @@ def run(zip_dir, csv_file_1, csv_file_2):
                 append_csv_file_type_1(csv_file_1, parsed_xml_data)
                 append_csv_file_type_2(csv_file_2, parsed_xml_data)
 
+def process_xml_data_worker(queue: multiprocessing.Queue):
+    
+    pass
+
+def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
+    create_csv_file_type_1(csv_file_1)
+    create_csv_file_type_2(csv_file_2)
+
+    xml_data_queue = multiprocessing.Queue()
+
+    zip_files = get_zip_files(f"{zip_dir}/*.zip")
+    for zip_file in zip_files:
+        with zipfile.ZipFile(zip_file, mode="r") as zip:
+            xml_files = get_xml_files(zip_file)
+            for xml_file in xml_files:
+                print(f"Zip file {zip_file}. XML file {xml_file}")
+                xml_data = xml_from_zip(zip, xml_file)
+                parsed_xml_data = parse_xml_file(xml_data)
+                # print("XML data", parsed_xml_data)
+                append_csv_file_type_1(csv_file_1, parsed_xml_data)
+                append_csv_file_type_2(csv_file_2, parsed_xml_data)
+
 
 if __name__ == "__main__":
     # cProfile.run('run()')
-    ZIP_DIRECTORY = 'zip-files'
+    ZIP_DIRECTORY = "zip-files"
 
     if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
         zip_dir = f"../{ZIP_DIRECTORY}"
