@@ -126,7 +126,6 @@ def process_xml_data_worker(parsed_xml_data_queue: multiprocessing.Queue, csv_fi
                 break
 
             if parsed_xml_data == "kill":
-                parsed_xml_data_queue.put("kill")
                 return True
 
             i += 1
