@@ -1,4 +1,4 @@
-from typing import List, Iterable, Iterator, Generator
+from typing import Any, Dict, List, Iterable, Iterator, Generator, Callable, Tuple
 import glob
 import zipfile
 import xml.etree.ElementTree as ET
@@ -50,6 +50,18 @@ class ParsedXMLData:
     object_names: List[str]
 
 
+@dataclass
+class DataCSVFile1:
+    id: str
+    level: str
+
+
+@dataclass
+class DataCSVFile2:
+    id: str
+    object_names: List[str]
+
+
 def parse_xml_file(xml_file_data: str) -> ParsedXMLData:
     root = ET.fromstring(xml_file_data)
 
@@ -89,13 +101,17 @@ def append_csv_file_type_1(csv_file: str, data: ParsedXMLData, delimiter=","):
     with open(csv_file, "a", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=delimiter)
         writer.writerow([data.id, data.level])
+    return 1
 
 
 def append_csv_file_type_2(csv_file: str, data: ParsedXMLData, delimiter=","):
+    records_stored = 0
     with open(csv_file, "a", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=delimiter)
         for object_name in data.object_names:
             writer.writerow([data.id, object_name])
+            records_stored += 1
+    return records_stored
 
 
 def run(zip_dir, csv_file_1, csv_file_2):
@@ -115,118 +131,146 @@ def run(zip_dir, csv_file_1, csv_file_2):
                 append_csv_file_type_2(csv_file_2, parsed_xml_data)
 
 
-def process_xml_data_worker(parsed_xml_data_queue: multiprocessing.Queue, csv_file_1, csv_file_2 ):
-    i = 0
+@dataclass
+class QueueWorkerResult:
+    errors: list[Exception]
+    successful_calls: int
+    records_processed: int
 
-    print("Worker started..")
+
+def queue_worker(
+    queue: multiprocessing.Queue,
+    callback: Callable[[multiprocessing.Queue, Any], Any],
+    *args: Tuple[Any],
+) -> Any:
+
+    print(f"Worker {callback.__name__} started..")
+
+    result = QueueWorkerResult(errors=[], successful_calls=0, records_processed=0)
+
     while True:
         try:
-            parsed_xml_data = parsed_xml_data_queue.get(block=False)
-            if parsed_xml_data is None:
-                break
+            data = queue.get(block=False)
+            if data == None:
+                continue
+            if data == "kill":
+                print(f"Worker {callback.__name__} will be stopped")
+                return result
 
-            if parsed_xml_data == "kill":
-                return True
+            records_processed = callback(data, *args)
+            if records_processed > 0:
+                result.successful_calls += 1
+                result.records_processed += records_processed
 
-            i += 1
-            print(f"Save result {i}")
-            append_csv_file_type_1(csv_file_1, parsed_xml_data)
-            append_csv_file_type_2(csv_file_2, parsed_xml_data)
-            
-            print(f"Save result {i} finish")
-            
         except Empty:
-            # print("Consumer: got nothing, waiting a while...", flush=True)
-            # sleep(0.5)
             continue
-        # check for stop
         except KeyboardInterrupt:
-            print("XML_WORKER Caught KeyboardInterrupt, finish worker")
+            print(f"Queue {callback.__name__} Caught KeyboardInterrupt, finish worker")
             return False
-
-def parse_xml_worker(xml_data_queue, parsed_data_queue):
-    i = 0
-    print("Worker started..")
-    while True:
-        try:
-            xml_data = xml_data_queue.get(block=False)
-            if xml_data is None:
-                break
-
-            if xml_data == "kill":
-                parsed_data_queue.put("kill")
-                return True
-
-            i += 1
-            print(f"Parse XML file {i}")
-            parsed_xml_data = parse_xml_file(xml_data)
-            parsed_data_queue.put(parsed_xml_data)
-            print(f"Parse XML file {i} finish")
-            
-        except Empty:
-            # print("Consumer: got nothing, waiting a while...", flush=True)
-            # sleep(0.5)
-            continue
-        # check for stop
-        except KeyboardInterrupt:
-            print("XML_WORKER Caught KeyboardInterrupt, finish worker")
-            return False
+        except Exception as e:
+            result.errors.append(e)
+            return result
 
 
-def pool_init(q2):
-    global q
-    q = q2
+def parse_xml_worker(
+    data: Any,
+    data_file_1_queue: multiprocessing.Queue,
+    data_file_2_queue: multiprocessing.Queue,
+) -> int:
+
+    parsed_xml_data = parse_xml_file(data)
+
+    data_file_1_queue.put(
+        DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
+    )
+
+    data_file_2_queue.put(
+        DataCSVFile2(id=parsed_xml_data.id, object_names=parsed_xml_data.object_names)
+    )
+
+    return 1
+
+
+def queue_file_1_worker(data, csv_file_1) -> int:
+    return append_csv_file_type_1(csv_file_1, data)
+
+
+def queue_file_2_worker(data, csv_file_2) -> int:
+    return append_csv_file_type_2(csv_file_2, data)
+
+
+def stop_queue(*args: Tuple[multiprocessing.Queue]):
+    for q in args:
+        q.put("kill")
+
+def check_jobs_finish(jobs: dict) -> bool:
+    all_finished = True
+    for name, j in jobs.items():
+        all_finished = j.ready() and all_finished
+    return all_finished
+   
 
 
 def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
     create_csv_file_type_1(csv_file_1)
     create_csv_file_type_2(csv_file_2)
 
-    original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-    signal.signal(signal.SIGINT, original_sigint_handler)
+    # original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    # signal.signal(signal.SIGINT, original_sigint_handler)
 
     xml_data_queue = multiprocessing.Manager().Queue()
-    parsed_data_queue = multiprocessing.Manager().Queue()
+    data_file_1_queue = multiprocessing.Manager().Queue()
+    data_file_2_queue = multiprocessing.Manager().Queue()
 
-    pool = multiprocessing.Pool(
-        multiprocessing.cpu_count()
-    )
-    
-    lock = Lock()
-    
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+
     try:
-        #
-        jobs = []
-        job = pool.apply_async(
-            parse_xml_worker, (xml_data_queue, parsed_data_queue)
-        )
-        
-        jobs.append(job)
-
-        job = pool.apply_async(
-            process_xml_data_worker, (parsed_data_queue, csv_file_1, csv_file_2)
+        jobs = {}
+        jobs["parse_xml_worker"] = pool.apply_async(
+            queue_worker,
+            (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
         )
 
-        jobs.append(job)
+        jobs["save_file_1"] = pool.apply_async(
+            queue_worker, (data_file_1_queue, queue_file_1_worker, csv_file_1)
+        )
+
+        jobs["save_file_2"] = pool.apply_async(
+            queue_worker, (data_file_2_queue, queue_file_2_worker, csv_file_2)
+        )
 
         zip_files = get_zip_files(f"{zip_dir}/*.zip")
         for zip_file in zip_files:
             with zipfile.ZipFile(zip_file, mode="r") as zip:
                 xml_files = get_xml_files(zip_file)
                 for xml_file in xml_files:
-                    print(f"Zip file {zip_file}. XML file {xml_file}")
+                    # print(f"Zip file {zip_file}. Extracted XML file {xml_file}")
                     xml_data = xml_from_zip(zip, xml_file)
                     xml_data_queue.put(xml_data)
 
+        stop_queue(xml_data_queue)
 
-        xml_data_queue.put("kill")
+        while not check_jobs_finish(jobs):
+            if jobs["parse_xml_worker"].ready():
+                stop_queue(data_file_1_queue, data_file_2_queue)
 
-        for j in jobs:
-            j.get()
-        
         pool.close()
-        pool.terminate()
         pool.join()
+
+        for name, j in jobs.items():
+            print(f"{name} ready with results {j.get()} ")
+
+        print(
+            f"======================================================================="
+        )
+        print(f"XML files processed {jobs['parse_xml_worker'].get().records_processed}")
+        print(
+            f"Records in {csv_file_1} stored {jobs['save_file_1'].get().records_processed}"
+        )
+        print(
+            f"Records in {csv_file_2} stored {jobs['save_file_2'].get().records_processed}"
+        )
+
 
     except KeyboardInterrupt:
         print("Main Caught KeyboardInterrupt, terminating workers")
@@ -237,11 +281,9 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
         # append_csv_file_type_2(csv_file_2, parsed_xml_data)
 
 
-
 if __name__ == "__main__":
     # cProfile.run('run()')
     ZIP_DIRECTORY = "zip-files"
-
     if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
         zip_dir = f"../{ZIP_DIRECTORY}"
     else:
@@ -249,7 +291,7 @@ if __name__ == "__main__":
 
     # profiler = cProfile.Profile()
     # profiler.enable()
-    
+
     run_multi_proc(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
     # run(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
     # profiler.disable()
