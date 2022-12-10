@@ -138,13 +138,13 @@ class QueueWorkerResult:
     records_processed: int
 
 
-def queue_worker(
+def queue_manager(
     queue: multiprocessing.Queue,
-    callback: Callable[[multiprocessing.Queue, Any], Any],
+    worker: Callable[[multiprocessing.Queue, Any], Any],
     *args: Tuple[Any],
 ) -> Any:
 
-    print(f"Worker {callback.__name__} started..")
+    print(f"Worker {worker.__name__} started..")
 
     result = QueueWorkerResult(errors=[], successful_calls=0, records_processed=0)
 
@@ -153,11 +153,12 @@ def queue_worker(
             data = queue.get(block=False)
             if data == None:
                 continue
-            if data == "kill":
-                print(f"Worker {callback.__name__} will be stopped")
+
+            if check_stop_queue(data):
+                print(f"Worker {worker.__name__} will be stopped")
                 return result
 
-            records_processed = callback(data, *args)
+            records_processed = worker(data, *args)
             if records_processed > 0:
                 result.successful_calls += 1
                 result.records_processed += records_processed
@@ -165,7 +166,7 @@ def queue_worker(
         except Empty:
             continue
         except KeyboardInterrupt:
-            print(f"Queue {callback.__name__} Caught KeyboardInterrupt, finish worker")
+            print(f"Queue {worker.__name__} Caught KeyboardInterrupt, finish worker")
             return False
         except Exception as e:
             result.errors.append(e)
@@ -202,6 +203,10 @@ def queue_file_2_worker(data, csv_file_2) -> int:
 def stop_queue(*args: Tuple[multiprocessing.Queue]):
     for q in args:
         q.put("kill")
+
+
+def check_stop_queue(data):
+    return data == "kill"
 
 
 def jobs_finished(jobs: dict) -> bool:
@@ -248,16 +253,16 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
 
     jobs = {}
     jobs["parse_xml_worker"] = pool.apply_async(
-        queue_worker,
+        queue_manager,
         (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
     )
 
     jobs["save_file_1"] = pool.apply_async(
-        queue_worker, (data_file_1_queue, queue_file_1_worker, csv_file_1)
+        queue_manager, (data_file_1_queue, queue_file_1_worker, csv_file_1)
     )
 
     jobs["save_file_2"] = pool.apply_async(
-        queue_worker, (data_file_2_queue, queue_file_2_worker, csv_file_2)
+        queue_manager, (data_file_2_queue, queue_file_2_worker, csv_file_2)
     )
 
     # main_loop
