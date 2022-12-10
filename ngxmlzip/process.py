@@ -170,7 +170,7 @@ def queue_manager(
             return False
         except Exception as e:
             result.errors.append(e)
-            return result
+            continue
 
 
 def parse_xml_worker(
