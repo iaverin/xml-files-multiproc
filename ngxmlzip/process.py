@@ -1,3 +1,4 @@
+import time
 from typing import Any, Dict, List, Iterable, Iterator, Generator, Callable, Tuple
 import glob
 import zipfile
@@ -155,16 +156,16 @@ def queue_manager(
         successful_worker_calls=0,
         records_processed=0,
         max_queue_size=0,
-        queue_size_on_start=queue.qsize(),
+        queue_size_on_start = queue.qsize()
     )
 
     while True:
         try:
             queue_size = queue.qsize()
-
+            
             if queue_size > result.max_queue_size:
                 result.max_queue_size = queue_size
-
+                
             data = queue.get(block=False)
             if data == None:
                 continue
@@ -327,7 +328,10 @@ if __name__ == "__main__":
 
     # profiler = cProfile.Profile()
     # profiler.enable()
+    t_start = time.time()
     run_multi_proc(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
+    t_finish = time.time()
+    print(f"Time spent {t_finish - t_start}")
     # run(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
     # profiler.disable()
     # stats = pstats.Stats(profiler).sort_stats("cumtime")
