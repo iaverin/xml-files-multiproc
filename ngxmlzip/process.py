@@ -134,8 +134,11 @@ def run(zip_dir, csv_file_1, csv_file_2):
 @dataclass
 class QueueWorkerResult:
     errors: list[Exception]
-    successful_calls: int
+    total_worker_calls: int
+    successful_worker_calls: int
     records_processed: int
+    max_queue_size: int
+    queue_size_on_start: int
 
 
 def queue_manager(
@@ -146,10 +149,22 @@ def queue_manager(
 
     print(f"Worker {worker.__name__} started..")
 
-    result = QueueWorkerResult(errors=[], successful_calls=0, records_processed=0)
+    result = QueueWorkerResult(
+        errors=[],
+        total_worker_calls=0,
+        successful_worker_calls=0,
+        records_processed=0,
+        max_queue_size=0,
+        queue_size_on_start=queue.qsize(),
+    )
 
     while True:
         try:
+            queue_size = queue.qsize()
+
+            if queue_size > result.max_queue_size:
+                result.max_queue_size = queue_size
+
             data = queue.get(block=False)
             if data == None:
                 continue
@@ -157,10 +172,10 @@ def queue_manager(
             if check_stop_queue(data):
                 print(f"Worker {worker.__name__} will be stopped")
                 return result
-
+            result.total_worker_calls += 1
             records_processed = worker(data, *args)
             if records_processed > 0:
-                result.successful_calls += 1
+                result.successful_worker_calls += 1
                 result.records_processed += records_processed
 
         except Empty:
@@ -257,6 +272,16 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
         (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
     )
 
+    # jobs["parse_xml_worker_2"] = pool.apply_async(
+    #     queue_manager,
+    #     (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
+    # )
+
+    # jobs["parse_xml_worker_3"] = pool.apply_async(
+    #     queue_manager,
+    #     (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
+    # )
+
     jobs["save_file_1"] = pool.apply_async(
         queue_manager, (data_file_1_queue, queue_file_1_worker, csv_file_1)
     )
@@ -269,6 +294,7 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
     try:
         put_xml_from_zip_files_in_queue(zip_dir, xml_data_queue)
         stop_queue(xml_data_queue)
+
         while not jobs_finished(jobs):
             if jobs["parse_xml_worker"].ready():
                 stop_queue(data_file_1_queue, data_file_2_queue)
@@ -301,7 +327,6 @@ if __name__ == "__main__":
 
     # profiler = cProfile.Profile()
     # profiler.enable()
-
     run_multi_proc(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
     # run(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
     # profiler.disable()
