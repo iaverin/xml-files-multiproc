@@ -203,12 +203,34 @@ def stop_queue(*args: Tuple[multiprocessing.Queue]):
     for q in args:
         q.put("kill")
 
-def check_jobs_finish(jobs: dict) -> bool:
+
+def jobs_finished(jobs: dict) -> bool:
     all_finished = True
     for name, j in jobs.items():
         all_finished = j.ready() and all_finished
     return all_finished
-   
+
+
+def print_results(
+    xml_files_proceeded, csv_file_1, csv_file_1_records, csv_file_2, csv_file_2_records
+):
+    print(f"=======================================================================")
+    print(f"XML files processed {xml_files_proceeded}")
+    print(f"Records in {csv_file_1} stored {csv_file_1_records}")
+    print(f"Records in {csv_file_2} stored {csv_file_2_records}")
+
+
+def put_xml_from_zip_files_in_queue(
+    zip_dir: str, xml_data_queue: multiprocessing.Queue
+):
+    zip_files = get_zip_files(f"{zip_dir}/*.zip")
+    for zip_file in zip_files:
+        with zipfile.ZipFile(zip_file, mode="r") as zip:
+            xml_files = get_xml_files(zip_file)
+            for xml_file in xml_files:
+                # print(f"Zip file {zip_file}. Extracted XML file {xml_file}")
+                xml_data = xml_from_zip(zip, xml_file)
+                xml_data_queue.put(xml_data)
 
 
 def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
@@ -224,61 +246,44 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
+    jobs = {}
+    jobs["parse_xml_worker"] = pool.apply_async(
+        queue_worker,
+        (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
+    )
+
+    jobs["save_file_1"] = pool.apply_async(
+        queue_worker, (data_file_1_queue, queue_file_1_worker, csv_file_1)
+    )
+
+    jobs["save_file_2"] = pool.apply_async(
+        queue_worker, (data_file_2_queue, queue_file_2_worker, csv_file_2)
+    )
+
+    # main_loop
     try:
-        jobs = {}
-        jobs["parse_xml_worker"] = pool.apply_async(
-            queue_worker,
-            (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
-        )
-
-        jobs["save_file_1"] = pool.apply_async(
-            queue_worker, (data_file_1_queue, queue_file_1_worker, csv_file_1)
-        )
-
-        jobs["save_file_2"] = pool.apply_async(
-            queue_worker, (data_file_2_queue, queue_file_2_worker, csv_file_2)
-        )
-
-        zip_files = get_zip_files(f"{zip_dir}/*.zip")
-        for zip_file in zip_files:
-            with zipfile.ZipFile(zip_file, mode="r") as zip:
-                xml_files = get_xml_files(zip_file)
-                for xml_file in xml_files:
-                    # print(f"Zip file {zip_file}. Extracted XML file {xml_file}")
-                    xml_data = xml_from_zip(zip, xml_file)
-                    xml_data_queue.put(xml_data)
-
+        put_xml_from_zip_files_in_queue(zip_dir, xml_data_queue)
         stop_queue(xml_data_queue)
-
-        while not check_jobs_finish(jobs):
+        while not jobs_finished(jobs):
             if jobs["parse_xml_worker"].ready():
                 stop_queue(data_file_1_queue, data_file_2_queue)
-
-        pool.close()
-        pool.join()
-
-        for name, j in jobs.items():
-            print(f"{name} ready with results {j.get()} ")
-
-        print(
-            f"======================================================================="
-        )
-        print(f"XML files processed {jobs['parse_xml_worker'].get().records_processed}")
-        print(
-            f"Records in {csv_file_1} stored {jobs['save_file_1'].get().records_processed}"
-        )
-        print(
-            f"Records in {csv_file_2} stored {jobs['save_file_2'].get().records_processed}"
-        )
-
-
     except KeyboardInterrupt:
         print("Main Caught KeyboardInterrupt, terminating workers")
         pool.terminate()
-        # parsed_xml_data = parse_xml_file(xml_data)
-        # # print("XML data", parsed_xml_data)
-        # append_csv_file_type_1(csv_file_1, parsed_xml_data)
-        # append_csv_file_type_2(csv_file_2, parsed_xml_data)
+
+    pool.close()
+    pool.join()
+
+    for name, j in jobs.items():
+        print(f"{name} ready with results {j.get()} ")
+
+    print_results(
+        xml_files_proceeded=jobs["parse_xml_worker"].get().records_processed,
+        csv_file_1=csv_file_1,
+        csv_file_1_records=jobs["save_file_1"].get().records_processed,
+        csv_file_2=csv_file_2,
+        csv_file_2_records=jobs["save_file_2"].get().records_processed,
+    )
 
 
 if __name__ == "__main__":
