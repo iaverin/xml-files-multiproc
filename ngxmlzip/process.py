@@ -1,11 +1,22 @@
+from abc import ABC, abstractmethod
 import time
-from typing import Any, Dict, List, Iterable, Iterator, Generator, Callable, Tuple
+from typing import (
+    Any,
+    Dict,
+    List,
+    Iterable,
+    Iterator,
+    Generator,
+    Callable,
+    Optional,
+    Tuple,
+)
 import glob
 import zipfile
 import xml.etree.ElementTree as ET
 import io
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import csv
 import cProfile
 import pstats
@@ -140,15 +151,28 @@ class QueueWorkerResult:
     records_processed: int
     max_queue_size: int
     queue_size_on_start: int
+    context: dict = field(default_factory=dict)
+
+
+@dataclass
+class WorkerResult:
+    records_processed: int = 0
+    context: Any = field(default=None)
+
+
+class Worker(ABC):
+    @abstractmethod
+    def worker(self, data: Any, context: Any, *args) -> WorkerResult:
+        pass
 
 
 def queue_manager(
     queue: multiprocessing.Queue,
-    worker: Callable[[multiprocessing.Queue, Any], Any],
+    worker: Callable[[multiprocessing.Queue, Any], Any] | Worker,
     *args: Tuple[Any],
 ) -> Any:
 
-    print(f"Worker {worker.__name__} started..")
+    # print(f"Worker {worker.__name__} started..")
 
     result = QueueWorkerResult(
         errors=[],
@@ -156,28 +180,37 @@ def queue_manager(
         successful_worker_calls=0,
         records_processed=0,
         max_queue_size=0,
-        queue_size_on_start = queue.qsize()
+        queue_size_on_start=queue.qsize(),
     )
 
     while True:
         try:
             queue_size = queue.qsize()
-            
+
             if queue_size > result.max_queue_size:
                 result.max_queue_size = queue_size
-                
+
             data = queue.get(block=False)
             if data == None:
                 continue
 
             if check_stop_queue(data):
-                print(f"Worker {worker.__name__} will be stopped")
+                # print(f"Worker {worker.__name__} will be stopped")
                 return result
+
             result.total_worker_calls += 1
-            records_processed = worker(data, *args)
-            if records_processed > 0:
+            if isinstance(worker, Callable):
+                worker_result = worker(data, *args)
                 result.successful_worker_calls += 1
-                result.records_processed += records_processed
+                if worker_result > 0:
+                    result.records_processed += worker_result
+
+            if isinstance(worker, Worker):
+                worker_result = worker.worker(data, context=result.context, *args)
+                result.successful_worker_calls += 1
+                if worker_result.context:
+                    result.context = worker_result.context
+
 
         except Empty:
             continue
@@ -193,10 +226,12 @@ def parse_xml_worker(
     data: Any,
     data_file_1_queue: multiprocessing.Queue,
     data_file_2_queue: multiprocessing.Queue,
+    monitoring_queue:  multiprocessing.Queue
 ) -> int:
 
     parsed_xml_data = parse_xml_file(data)
-
+    for i in range(0,len(parsed_xml_data.object_names)):
+        monitoring_queue.put("object_parsed")
     data_file_1_queue.put(
         DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
     )
@@ -214,6 +249,13 @@ def queue_file_1_worker(data, csv_file_1) -> int:
 
 def queue_file_2_worker(data, csv_file_2) -> int:
     return append_csv_file_type_2(csv_file_2, data)
+
+
+class MonitoringWorker(Worker):
+    def worker(self, data: Any, context: Any, *args) -> WorkerResult:
+        return_context = dict(context)
+        return_context[data] = context.get(data, 0) + 1
+        return WorkerResult(1, context=return_context)
 
 
 def stop_queue(*args: Tuple[multiprocessing.Queue]):
@@ -242,16 +284,22 @@ def print_results(
 
 
 def put_xml_from_zip_files_in_queue(
-    zip_dir: str, xml_data_queue: multiprocessing.Queue
+    zip_dir: str,
+    xml_data_queue: multiprocessing.Queue,
+    monitoring_queue: multiprocessing.Queue,
 ):
     zip_files = get_zip_files(f"{zip_dir}/*.zip")
     for zip_file in zip_files:
         with zipfile.ZipFile(zip_file, mode="r") as zip:
+            monitoring_queue.put("zip_file_extracted")
             xml_files = get_xml_files(zip_file)
             for xml_file in xml_files:
                 # print(f"Zip file {zip_file}. Extracted XML file {xml_file}")
                 xml_data = xml_from_zip(zip, xml_file)
                 xml_data_queue.put(xml_data)
+                monitoring_queue.put("xml_file_added")
+                
+    return
 
 
 def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
@@ -265,23 +313,25 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
     data_file_1_queue = multiprocessing.Manager().Queue()
     data_file_2_queue = multiprocessing.Manager().Queue()
 
+    monitoring_queue = multiprocessing.Manager().Queue()
+
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
     jobs = {}
     jobs["parse_xml_worker"] = pool.apply_async(
         queue_manager,
-        (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
+        (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue, monitoring_queue),
     )
 
-    # jobs["parse_xml_worker_2"] = pool.apply_async(
-    #     queue_manager,
-    #     (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
-    # )
+    jobs["parse_xml_worker_2"] = pool.apply_async(
+        queue_manager,
+        (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue, monitoring_queue),
+    )
 
-    # jobs["parse_xml_worker_3"] = pool.apply_async(
-    #     queue_manager,
-    #     (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue),
-    # )
+    jobs["parse_xml_worker_3"] = pool.apply_async(
+        queue_manager,
+        (xml_data_queue, parse_xml_worker, data_file_1_queue, data_file_2_queue, monitoring_queue),
+    )
 
     jobs["save_file_1"] = pool.apply_async(
         queue_manager, (data_file_1_queue, queue_file_1_worker, csv_file_1)
@@ -291,23 +341,37 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
         queue_manager, (data_file_2_queue, queue_file_2_worker, csv_file_2)
     )
 
+    # global monitoring
+    # monitoring = MonitoringDataQueue(queue=monitoring_queue)
+    monitoring_worker = MonitoringWorker()
+    monitoring_job = pool.apply_async(
+        queue_manager, (monitoring_queue, monitoring_worker)
+    )
+
     # main_loop
     try:
-        put_xml_from_zip_files_in_queue(zip_dir, xml_data_queue)
+        put_xml_from_zip_files_in_queue(zip_dir, xml_data_queue, monitoring_queue)
+        stop_queue(xml_data_queue)
+        stop_queue(xml_data_queue)
         stop_queue(xml_data_queue)
 
         while not jobs_finished(jobs):
             if jobs["parse_xml_worker"].ready():
                 stop_queue(data_file_1_queue, data_file_2_queue)
+        
+        for name, j in jobs.items():
+            print(f"{name} ready with results {j.get()} ")
+        
+        stop_queue(monitoring_queue)
+        # monitoring_job.get()
+        print(f"{monitoring_job.get()}")
+
     except KeyboardInterrupt:
         print("Main Caught KeyboardInterrupt, terminating workers")
         pool.terminate()
 
     pool.close()
     pool.join()
-
-    for name, j in jobs.items():
-        print(f"{name} ready with results {j.get()} ")
 
     print_results(
         xml_files_proceeded=jobs["parse_xml_worker"].get().records_processed,
