@@ -230,8 +230,7 @@ def parse_xml_worker(
 ) -> int:
 
     parsed_xml_data = parse_xml_file(data)
-    for i in range(0,len(parsed_xml_data.object_names)):
-        monitoring_queue.put("object_parsed")
+    monitoring_queue.put({"object_parsed":len(parsed_xml_data.object_names)})
     data_file_1_queue.put(
         DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
     )
@@ -254,7 +253,11 @@ def queue_file_2_worker(data, csv_file_2) -> int:
 class MonitoringWorker(Worker):
     def worker(self, data: Any, context: Any, *args) -> WorkerResult:
         return_context = dict(context)
-        return_context[data] = context.get(data, 0) + 1
+        if isinstance(data, dict):
+            for k,v in data.items():
+                return_context[k] = context.get(k, 0) + v
+        else:
+            return_context[data] = context.get(data, 0) + 1
         return WorkerResult(1, context=return_context)
 
 
