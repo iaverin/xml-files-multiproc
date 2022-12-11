@@ -161,14 +161,25 @@ class WorkerResult:
 
 
 class Worker(ABC):
+    def __init__(self, name:str = ""):
+        self.name = name
+
     @abstractmethod
     def worker(self, data: Any, context: Any, *args) -> WorkerResult:
         pass
 
+class ChunkedWorker(ABC):
+    def __init__(self, name: str="", max_chunk_size: int=0):
+        self.name = name
+        self.max_chunk_size = max_chunk_size
+
+    @abstractmethod
+    def worker(self, data: List[Any], context: Any, *args) -> WorkerResult:
+        pass
 
 def queue_manager(
     queue: multiprocessing.Queue,
-    worker: Callable[[multiprocessing.Queue, Any], Any] | Worker,
+    worker: Callable[[multiprocessing.Queue, Any], Any] | Worker | ChunkedWorker,
     *args: Tuple[Any],
 ) -> Any:
 
@@ -210,7 +221,29 @@ def queue_manager(
                 result.successful_worker_calls += 1
                 if worker_result.context:
                     result.context = worker_result.context
-
+            
+            if isinstance(worker, ChunkedWorker):
+                chunked_data = [data,]
+                end_after = False
+                
+                while not queue.empty() and len(chunked_data) < worker.max_chunk_size:
+                    data=queue.get(block=False)
+                    
+                    if check_stop_queue(data):
+                        end_after = True
+                        break
+                    else:
+                        chunked_data.append(data)
+                
+                worker_result = worker.worker(chunked_data, *args)
+                result.successful_worker_calls += 1
+                result.records_processed += worker_result.records_processed
+                
+                if worker_result.context:
+                    result.context = worker_result.context
+                
+                if end_after:
+                    return result
 
         except Empty:
             continue
@@ -259,6 +292,28 @@ class MonitoringWorker(Worker):
         else:
             return_context[data] = context.get(data, 0) + 1
         return WorkerResult(1, context=return_context)
+
+class CSVFile2Worker(ChunkedWorker):
+    def worker(self, data: List[Any], csv_file) -> WorkerResult:
+        records_stored = 0
+        with open(csv_file, "a", newline="") as csvfile:
+            writer = csv.writer(csvfile, delimiter=",")
+            for chunk in data:
+                for object_name in chunk.object_names:
+                    writer.writerow([chunk.id, object_name])
+                    records_stored += 1
+        return WorkerResult(records_processed=records_stored)
+
+
+class CSVFile1Worker(ChunkedWorker):
+    def worker(self, data: List[Any], csv_file) -> WorkerResult:
+        records_stored = 0
+        with open(csv_file, "a", newline="") as csvfile:
+            writer = csv.writer(csvfile, delimiter=',')
+            for chunk in data:
+                writer.writerow([chunk.id, chunk.level])
+                records_stored += 1
+        return WorkerResult(records_processed=records_stored)
 
 
 def stop_queue(*args: Tuple[multiprocessing.Queue]):
@@ -337,11 +392,11 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
     )
 
     jobs["save_file_1"] = pool.apply_async(
-        queue_manager, (data_file_1_queue, queue_file_1_worker, csv_file_1)
+        queue_manager, (data_file_1_queue, CSVFile1Worker(max_chunk_size=1000), csv_file_1)
     )
 
     jobs["save_file_2"] = pool.apply_async(
-        queue_manager, (data_file_2_queue, queue_file_2_worker, csv_file_2)
+        queue_manager, (data_file_2_queue, CSVFile2Worker(max_chunk_size=1000), csv_file_2)
     )
 
     # global monitoring
