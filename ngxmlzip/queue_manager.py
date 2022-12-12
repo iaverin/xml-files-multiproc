@@ -90,16 +90,27 @@ class QueueWorkersManager:
     def add_job(self, job):
         self._jobs.update(job)
 
-    def register_worker(self, queue: mp.Queue, worker: Worker, instances: int = 1, on_finish_stop_queues: List[mp.Queue] =[]):
+    def register_worker(
+        self,
+        queue: mp.Queue,
+        worker: Worker,
+        instances: int = 1,
+        on_finish_stop_queues: List[mp.Queue] = [],
+    ):
         for i in range(0, instances):
             self.queue_workers.append(
-                QueueWorker(queue=queue, worker=worker, instance=i, on_finish_stop_queues=on_finish_stop_queues)
+                QueueWorker(
+                    queue=queue,
+                    worker=worker,
+                    instance=i,
+                    on_finish_stop_queues=on_finish_stop_queues,
+                )
             )
 
     @classmethod
     def _worker(cls, queue: mp.Queue, worker: Worker | ChunkedWorker, *args):
         result = QueueWorkerResult(
-            worker_name= worker.name,
+            worker_name=worker.name,
             errors=[],
             total_worker_calls=0,
             successful_worker_calls=0,
@@ -171,11 +182,11 @@ class QueueWorkersManager:
         jobs = list()
         for queue_worker in self.queue_workers:
             job = pool.apply_async(
-                    self._worker, (queue_worker.queue, queue_worker.worker)
-                )
+                self._worker, (queue_worker.queue, queue_worker.worker)
+            )
             jobs.append(job)
-            queue_worker.job  = job
-        
+            queue_worker.job = job
+
         self._jobs = jobs
         return self._jobs
 
