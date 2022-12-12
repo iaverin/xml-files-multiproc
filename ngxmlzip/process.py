@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Optional,
     Tuple,
+    Union,
 )
 import glob
 import zipfile
@@ -145,7 +146,7 @@ def run(zip_dir, csv_file_1, csv_file_2):
 
 @dataclass
 class QueueWorkerResult:
-    errors: list[Exception]
+    errors: List[Exception]
     total_worker_calls: int
     successful_worker_calls: int
     records_processed: int
@@ -160,7 +161,7 @@ class WorkerResult:
     context: Any = field(default=None)
 
 
-class Worker(ABC):
+class Worker():
     def __init__(self, name:str = ""):
         self.name = name
 
@@ -168,7 +169,7 @@ class Worker(ABC):
     def worker(self, data: Any, context: Any, *args) -> WorkerResult:
         pass
 
-class ChunkedWorker(ABC):
+class ChunkedWorker():
     def __init__(self, name: str="", max_chunk_size: int=0):
         self.name = name
         self.max_chunk_size = max_chunk_size
@@ -179,7 +180,7 @@ class ChunkedWorker(ABC):
 
 def queue_manager(
     queue: multiprocessing.Queue,
-    worker: Callable[[multiprocessing.Queue, Any], Any] | Worker | ChunkedWorker,
+    worker: Union[Callable[[multiprocessing.Queue, Any], Any], Worker , ChunkedWorker],
     *args: Tuple[Any],
 ) -> Any:
 
