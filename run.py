@@ -1,10 +1,8 @@
-# from ngxmlzip import process
-# from ngxmlzip import create
-# from ngxmlzip.utils import AllResults
 from pprint import pprint
 from ngxmlzip import process
 from ngxmlzip import create
 from ngxmlzip.utils import OperationResult
+from ngxmlzip.colors import TextColors
 
 MAX_OBJECTS_IN_XML = 10
 XML_FILES_IN_ZIP = 100
@@ -16,6 +14,7 @@ CSV_FILE_2 = "csv_file_2.csv"
 
 if __name__ == "__main__":
     if not create.create_dir(ZIP_DIRECTORY):
+        print(f"{TextColors.FAIL}directory {ZIP_DIRECTORY} could not be created!{TextColors.ENDC}")
         exit()
 
     create_result: OperationResult = None
@@ -29,10 +28,12 @@ if __name__ == "__main__":
         )
     except OSError as e:
         print(f"Error saving zip file. \n Error: {e}")
+        exit()
+        # clean-up code
 
     if create_result.total_zip_files != ZIP_FILES:
         print(
-            f"Not all zip files was created. Expected {ZIP_FILES}. Created {create_result.total_zip_files}"
+            f"Not all zip files were created. Expected {ZIP_FILES}. Created {create_result.total_zip_files}"
         )
         exit()
 
@@ -44,4 +45,10 @@ if __name__ == "__main__":
     pprint(process_result)
 
     if create_result == process_result:
-        print("All Ok")
+        print(f"{TextColors.OKGREEN}All Ok{TextColors.ENDC}")
+    else:
+        print(f"{TextColors.FAIL}Error!{TextColors.ENDC}")
+        for k,v in process_result.__dict__.items():
+            if create_result.__dict__[k] != v:
+                print(f"created {k}: {create_result.__dict__[k]}  processed: {v}")
+
