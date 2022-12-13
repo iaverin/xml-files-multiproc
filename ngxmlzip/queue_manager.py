@@ -17,14 +17,19 @@ class Worker(ABC):
         self.name = name
 
     @abstractmethod
-    def worker(self, data: Any, context: Any, *args) -> WorkerResult:
+    def worker(self, data: Any, *args) -> WorkerResult:
         pass
 
 
 class ChunkedWorker(ABC):
-    def __init__(self, name: str = "", max_chunk_size: int = 0):
+    def __init__(self, name: str, max_chunk_size: int = 0):
         self.name = name
         self.max_chunk_size = max_chunk_size
+    
+    @abstractmethod
+    def worker(self, data: List[Any], *args) -> WorkerResult:
+        pass
+
 
 
 @dataclass
@@ -131,40 +136,33 @@ class QueueWorkersManager:
                     continue
 
                 if cls._check_stop_queue(data):
-                    # print(f"Worker {worker.__name__} will be stopped")
                     return result
+
                 result.total_worker_calls += 1
                 if isinstance(worker, Worker):
-                    worker_result = worker.worker(data, context=result.context, *args)
-                    result.successful_worker_calls += 1
-                    if worker_result.context:
-                        result.context = worker_result.context
-
-                if isinstance(worker, ChunkedWorker):
-                    chunked_data = [
-                        data,
-                    ]
-                    end_after = False
-
-                    while (
-                        not queue.empty() and len(chunked_data) < worker.max_chunk_size
-                    ):
-                        data = queue.get(block=False)
-
-                        if cls._check_stop_queue(data):
-                            end_after = True
-                            break
-                        else:
-                            chunked_data.append(data)
-
-                    worker_result = worker.worker(chunked_data, *args)
+                    worker_result = worker.worker(data, *args)
                     result.successful_worker_calls += 1
                     result.records_processed += worker_result.records_processed
 
-                    if worker_result.context:
-                        result.context = worker_result.context
+                if isinstance(worker, ChunkedWorker):
+                    data_chunk = [data]
+                    has_stop_queue = False
+                    while not queue.empty() and len(data_chunk) < worker.max_chunk_size:
+                        try: 
+                            data = queue.get(block=False)
+                            if cls._check_stop_queue(data):
+                                has_stop_queue = True
+                                break
+                            else:
+                                data_chunk.append(data)
+                        except Empty:
+                            pass 
 
-                    if end_after:
+                    worker_result = worker.worker(data_chunk, *args)
+                    result.successful_worker_calls += 1
+                    result.records_processed += worker_result.records_processed
+
+                    if has_stop_queue:
                         return result
 
             except Empty:

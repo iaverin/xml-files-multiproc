@@ -1,8 +1,8 @@
-from typing import Any
+from typing import Any, List
 import unittest
 import multiprocessing as mp
 
-from ngxmlzip.queue_manager import Worker, WorkerResult, QueueWorkersManager, QueueWorkerResult 
+from ngxmlzip.queue_manager import ChunkedWorker, Worker, WorkerResult, QueueWorkersManager, QueueWorkerResult 
 
 class SimpleProducerWorker(Worker):
     def __init__(self, name: str, param: str, consumer_queue: mp.Queue):
@@ -10,7 +10,7 @@ class SimpleProducerWorker(Worker):
         self.param = param
         self.consumer_queue = consumer_queue
 
-    def worker(self, data: Any, context: Any) -> WorkerResult:
+    def worker(self, data: Any) -> WorkerResult:
         # print(f"Producer > {self.param}: {data}")
         if data == "test_param":
             self.consumer_queue.put(f"Producer > {data}")
@@ -18,14 +18,18 @@ class SimpleProducerWorker(Worker):
 
 
 class SimpleConsumerWorker(Worker):
-    def __init__(self, name: str):
-        self.name = name
-
-    def worker(self, data: Any, context: Any) -> WorkerResult:
+    def worker(self, data: Any) -> WorkerResult:
         # print(f"Result > {data}")
-        if data == "Producer > {data}":
+        if data == "Producer > test_param":
             return WorkerResult(records_processed=1)
 
+class ChunkedConsumerWorker(ChunkedWorker):
+    def worker(self, data_chunk: List[Any]) -> WorkerResult:
+        records_processed = 0                    
+        for data in data_chunk:
+            if data == "Producer > test_param":
+                records_processed += 1                    
+        return WorkerResult(records_processed=records_processed)
 
 class TestQueueManager(unittest.TestCase):
     def test_create_worker(self):
@@ -75,8 +79,70 @@ class TestQueueManager(unittest.TestCase):
         producer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'producer'])
         consumer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'consumer'])
         
+        pool.close()
+        pool.join()
+
         self.assertEqual(Q_SIZE, producer_total_calls)
         self.assertEqual(Q_SIZE, consumer_total_calls)
+
+    def test_chunked_worker(self):
+        Q_SIZE = 100 
+        producer_queue = mp.Manager().Queue()
+        consumer_queue = mp.Manager().Queue()
+
+        producer_worker = SimpleProducerWorker(
+            name="producer", param="test_param", consumer_queue=consumer_queue
+        )
+        consumer_worker = ChunkedConsumerWorker("consumer", max_chunk_size=10)
+
+        pool = mp.Pool(mp.cpu_count())
+
+        qm = QueueWorkersManager(mp.cpu_count())
+
+        qm.register_worker(
+            producer_queue,
+            producer_worker,
+            instances=1,
+            on_finish_stop_queues=[consumer_queue]
+        )
+        qm.register_worker(consumer_queue, consumer_worker, instances=2)
+
+        jobs = qm.start_workers(pool)
+
+        for i in range(0, Q_SIZE):
+            producer_queue.put(f"test_param")
+
+        qm.stop_worker_instances(producer_worker)
+
+        while not qm.workers_finished():
+            print("!!!!")
+            continue
+
+        results = qm.collect_results()
+
+        expected_producer_result = QueueWorkerResult(worker_name='producer',
+                   errors=[],
+                   total_worker_calls=100,
+                   successful_worker_calls=100,
+                   records_processed=0,
+                   max_queue_size=101,
+                   queue_size_on_start=101,
+                   context={})
+
+        producer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'producer'])
+        consumer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'consumer'])
+        consumer_records_processed = sum ([pr.records_processed for pr in results if pr.worker_name == 'consumer'])
+
+        pool.close()
+        pool.join()
+
+        self.assertEqual(Q_SIZE, producer_total_calls)
+        self.assertGreaterEqual(Q_SIZE, consumer_total_calls)
+        self.assertEqual(Q_SIZE, consumer_records_processed)
+
+        
+    
+
 
 
 if __name__ == "__main__":
