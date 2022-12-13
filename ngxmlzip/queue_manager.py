@@ -25,11 +25,10 @@ class ChunkedWorker(ABC):
     def __init__(self, name: str, max_chunk_size: int = 0):
         self.name = name
         self.max_chunk_size = max_chunk_size
-    
+
     @abstractmethod
     def worker(self, data: List[Any], *args) -> WorkerResult:
         pass
-
 
 
 @dataclass
@@ -122,7 +121,7 @@ class QueueWorkersManager:
             successful_worker_calls=0,
             records_processed=0,
             max_queue_size=0,
-            max_chunk_size = 0,  
+            max_chunk_size=0,
             queue_size_on_start=queue.qsize(),
         )
 
@@ -147,12 +146,11 @@ class QueueWorkersManager:
                     result.records_processed += worker_result.records_processed
                     result.max_chunk_size = 1
 
-
                 if isinstance(worker, ChunkedWorker):
                     data_chunk = [data]
                     has_stop_queue = False
                     while not queue.empty() and len(data_chunk) < worker.max_chunk_size:
-                        try: 
+                        try:
                             data = queue.get(block=False)
                             if cls._check_stop_queue(data):
                                 has_stop_queue = True
@@ -160,7 +158,7 @@ class QueueWorkersManager:
                             else:
                                 data_chunk.append(data)
                         except Empty:
-                            pass 
+                            pass
 
                     worker_result = worker.worker(data_chunk, *args)
                     result.successful_worker_calls += 1
