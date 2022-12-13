@@ -44,6 +44,20 @@ class QueueWorkerResult:
     max_chunk_size: int
     context: dict = field(default_factory=dict)
 
+@dataclass
+class QueueAllWorkerInstancesResult:
+    worker_name: str 
+    instances: int  
+    errors: list[Exception]
+    total_worker_calls: int
+    successful_worker_calls: int
+    records_processed: int
+    max_queue_size: int
+    queue_size_on_start: int
+    max_chunk_size: int
+    context: dict = field(default_factory=dict)
+
+
 
 @dataclass
 class QueueWorker:
@@ -203,8 +217,9 @@ class QueueWorkersManager:
     
     def get_worker_results(self, qm_results: List[QueueWorkerResult], worker_name: str):
         results = [r for r in qm_results if r.worker_name == worker_name]
-        return QueueWorkerResult(
+        return QueueAllWorkerInstancesResult(
             worker_name=worker_name,
+            instances=len([w.worker_name for w in results]),
             errors=reduce(
                 lambda a, v: [e for e in v.errors], results, []
             ),
