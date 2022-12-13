@@ -18,7 +18,7 @@ from .queue_manager import (
     QueueWorkersManager,
 )
 
-from ngxmlzip.file_utils import create_csv_file_type_1, create_csv_file_type_2
+from ngxmlzip.utils.files import create_csv_file_type_1, create_csv_file_type_2
 
 from ngxmlzip.workers.zip_files import put_xml_from_zip_files_in_queue
 from ngxmlzip.workers.parse_xml import ParseXMLWorker

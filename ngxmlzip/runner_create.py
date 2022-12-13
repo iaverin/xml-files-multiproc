@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable, Any
 
-from ngxmlzip.file_utils import create_dir
+from ngxmlzip.utils.files import create_dir
 from .data_types import OperationResult
 
 
