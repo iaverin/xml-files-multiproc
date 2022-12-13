@@ -25,7 +25,7 @@ from ngxmlzip.workers.parse_xml import ParseXMLWorker
 from ngxmlzip.workers.save_csv_files import CSVFile1Worker, CSVFile2ChunkedWorker
 
 
-def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
+def run_processing(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
     create_csv_file_type_1(csv_file_1)
     create_csv_file_type_2(csv_file_2)
 
@@ -106,4 +106,3 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
     except KeyboardInterrupt:
         print("Main Caught KeyboardInterrupt, terminating workers")
         pool.terminate()
-

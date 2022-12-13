@@ -14,12 +14,14 @@ CSV_FILE_2 = "csv_file_2.csv"
 
 if __name__ == "__main__":
     if not runner_create.create_dir(ZIP_DIRECTORY):
-        print(f"{TextColors.FAIL}directory {ZIP_DIRECTORY} could not be created!{TextColors.ENDC}")
+        print(
+            f"{TextColors.FAIL}directory {ZIP_DIRECTORY} could not be created!{TextColors.ENDC}"
+        )
         exit()
 
     create_result: OperationResult = None
     try:
-        create_result = runner_create.create_zip_files(
+        create_result = runner_create.run_create_zip_files(
             MAX_OBJECTS_IN_XML,
             XML_FILES_IN_ZIP,
             ZIP_FILES,
@@ -41,14 +43,16 @@ if __name__ == "__main__":
     print("================ Create results  ========================")
     pprint(create_result)
     print("================ Process result =========================")
-    process_result = runner_process.run_multi_proc(ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2)
+    
+    process_result = runner_process.run_processing(
+        ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2
+    )
     pprint(process_result)
 
     if create_result == process_result:
         print(f"{TextColors.OKGREEN}All Ok{TextColors.ENDC}")
     else:
         print(f"{TextColors.FAIL}Error!{TextColors.ENDC}")
-        for k,v in process_result.__dict__.items():
+        for k, v in process_result.__dict__.items():
             if create_result.__dict__[k] != v:
                 print(f"created {k}: {create_result.__dict__[k]}  processed: {v}")
-

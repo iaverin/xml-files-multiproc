@@ -49,7 +49,7 @@ def EMPTY_FUNC(x):
     pass
 
 
-def create_zip_files(
+def run_create_zip_files(
     objects_in_xml: int,
     xml_files_in_zip: int,
     number_zip_files: int,
@@ -79,6 +79,3 @@ def create_zip_files(
         total_xml_files=xml_files_created,
         total_objects=objects_created,
     )
-
-
-
