@@ -7,18 +7,18 @@ from typing import (
 )
 import glob
 import zipfile
-import xml.etree.ElementTree as ET
 import os
 from dataclasses import dataclass
 import csv
 import multiprocessing
-from .utils import OperationResult
+from .utils import OperationResult, XMLFile
 from .queue_manager import (
     QueueWorkersManager,
     Worker,
     WorkerResult,
     ChunkedWorker,
 )
+from ngxmlzip.workers.parse_xml import ParseXMLWorker
 
 
 def get_zip_files(directory: str) -> List[str]:
@@ -43,47 +43,6 @@ def xml_from_zip(zipfile: zipfile.ZipFile, xml_file_name: str) -> str:
             return xml_data
     except KeyError:
         raise FileNotFoundError(f"File not found inside zip: {xml_file_name}")
-
-
-@dataclass
-class ParsedXMLData:
-    id: str
-    level: str
-    object_names: List[str]
-
-
-@dataclass
-class DataCSVFile1:
-    id: str
-    level: str
-
-
-@dataclass
-class DataCSVFile2:
-    id: str
-    object_names: List[str]
-
-
-def parse_xml_file(xml_file_data: str) -> ParsedXMLData:
-    root = ET.fromstring(xml_file_data)
-    id = ""
-    level = ""
-    object_names = list()
-
-    for child in root:
-        if child.tag == "var" and child.attrib.get("name") == "id":
-            id = child.attrib.get("value", "")
-
-        if child.tag == "var" and child.attrib.get("name") == "level":
-            level = child.attrib.get("value", "")
-
-        if child.tag == "objects":
-            objects = child
-            for object in objects:
-                object_names.append(object.attrib.get("name", ""))
-
-    parsed_data = ParsedXMLData(id=id, level=level, object_names=object_names)
-    return parsed_data
 
 
 def create_csv_file_type_1(csv_file: str, delimiter=","):
@@ -124,50 +83,6 @@ class CSVFile1Worker(Worker):
             writer = csv.writer(csvfile, delimiter=",")
             writer.writerow([data.id, data.level])
             return WorkerResult(records_processed=1)
-
-
-@dataclass
-class XMLFile:
-    zip_file: str
-    xml_file: str
-    xml_data: str
-
-
-class ParseXmlWorker(Worker):
-    def __init__(
-        self,
-        name: str,
-        data_file_1_queue: multiprocessing.Queue,
-        data_file_2_queue: multiprocessing.Queue,
-        number_extracted_objects_queue: multiprocessing.Queue,
-    ):
-        super().__init__(name)
-        self.data_file_1_queue = data_file_1_queue
-        self.data_file_2_queue = data_file_2_queue
-        self.number_extracted_objects_queue = number_extracted_objects_queue
-
-    def worker(self, data: XMLFile) -> WorkerResult:
-        if isinstance(data, XMLFile):
-            try:
-                parsed_xml_data = parse_xml_file(data.xml_data)
-            except ET.ParseError as e:
-                raise ValueError(
-                    f"Could not parse XML in data in {data.zip_file}, {data.xml_file}. Error: {e}"
-                )
-            self.number_extracted_objects_queue.put(len(parsed_xml_data.object_names))
-            self.data_file_1_queue.put(
-                DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
-            )
-
-            self.data_file_2_queue.put(
-                DataCSVFile2(
-                    id=parsed_xml_data.id, object_names=parsed_xml_data.object_names
-                )
-            )
-            return WorkerResult(records_processed=1)
-        raise ValueError(
-            f"Wrong data type {type(data)} format in xml data queue. Should be XMLFile"
-        )
 
 
 class NumberExtractedObjectsWorker(Worker):
@@ -216,7 +131,7 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     qm = QueueWorkersManager(multiprocessing.cpu_count())
 
-    parse_xml_worker = ParseXmlWorker(
+    parse_xml_worker = ParseXMLWorker(
         name="parse_xml",
         data_file_1_queue=data_file_1_queue,
         data_file_2_queue=data_file_2_queue,
