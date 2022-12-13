@@ -5,6 +5,8 @@ import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable, Any
+
+from ngxmlzip.file_utils import create_dir
 from .data_types import OperationResult
 
 
@@ -41,17 +43,6 @@ def generate_xml_file_data(tree: ET.ElementTree) -> str:
     xml_file = f.read()
     f.close()
     return xml_file
-
-
-def create_dir(dir) -> bool:
-    try:
-        os.mkdir(dir)
-        return True
-    except FileExistsError:
-        return True
-    except OSError as e:
-        print(f"Could not create directory {dir}. \n Error: {e}")
-        return False
 
 
 def EMPTY_FUNC(x):

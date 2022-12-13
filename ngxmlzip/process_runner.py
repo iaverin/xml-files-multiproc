@@ -12,25 +12,17 @@ from dataclasses import dataclass
 import csv
 import multiprocessing
 
+
 from .data_types import OperationResult, XMLFile
 from .queue_manager import (
     QueueWorkersManager,
 )
+
+from ngxmlzip.file_utils import create_csv_file_type_1, create_csv_file_type_2
+
 from ngxmlzip.workers.zip_files import put_xml_from_zip_files_in_queue
 from ngxmlzip.workers.parse_xml import ParseXMLWorker
 from ngxmlzip.workers.save_csv_files import CSVFile1Worker, CSVFile2ChunkedWorker
-
-
-def create_csv_file_type_1(csv_file: str, delimiter=","):
-    with open(csv_file, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile, delimiter=delimiter)
-        writer.writerow(["id", "level"])
-
-
-def create_csv_file_type_2(csv_file: str, delimiter=","):
-    with open(csv_file, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile, delimiter=delimiter)
-        writer.writerow(["id", "object_name"])
 
 
 def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
