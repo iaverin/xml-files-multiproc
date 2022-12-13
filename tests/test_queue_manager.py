@@ -41,6 +41,13 @@ class ChunkedConsumerWorker(ChunkedWorker):
         return WorkerResult(records_processed=records_processed)
 
 
+class ConsumerWorkerWithError(Worker):
+    def worker(self, data: Any) -> WorkerResult:
+        if data % 2 == 0:
+            raise ValueError(f"Error in worker {data}")
+        return WorkerResult(1)
+
+
 class TestQueueManager(unittest.TestCase):
     def test_create_worker(self):
         Q_SIZE = 100
@@ -144,6 +151,25 @@ class TestQueueManager(unittest.TestCase):
         self.assertGreaterEqual(
             consumer_worker.max_chunk_size, consumer_results.max_chunk_size
         )
+
+    def test_errors_collection(self):
+
+        Q_SIZE = 100
+        queue = mp.Manager().Queue()
+        worker = ConsumerWorkerWithError(name="worker")
+        pool = mp.Pool(mp.cpu_count())
+        qm = QueueWorkersManager(mp.cpu_count())
+        qm.register_worker(queue, worker, instances=2)
+        qm.start_workers(pool)
+        for i in range(0, Q_SIZE):
+            queue.put(i)
+        qm.stop_worker_instances_for_queue(queue)
+        while not qm.workers_finished():
+            continue
+        results = qm.collect_results()
+        worker_results = qm.get_worker_results(results, "worker")
+        print(worker_results)
+        self.assertEqual(50, len(worker_results.errors))
 
 
 if __name__ == "__main__":

@@ -220,7 +220,7 @@ class QueueWorkersManager:
         return QueueAllWorkerInstancesResult(
             worker_name=worker_name,
             instances=len([w.worker_name for w in results]),
-            errors=reduce(lambda a, v: [e for e in v.errors], results, []),
+            errors=reduce(lambda a,v : a + [e for e in v.errors] , results, []),
             total_worker_calls=reduce(
                 lambda a, v: a + v.total_worker_calls, results, 0
             ),
