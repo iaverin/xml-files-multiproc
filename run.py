@@ -50,7 +50,7 @@ if __name__ == "__main__":
     pprint(process_result)
 
     if create_result == process_result:
-        print(f"{TextColors.OKGREEN}All Ok{TextColors.ENDC}")
+        print(f"{TextColors.OKGREEN}Processed data matches created.{TextColors.ENDC}")
     else:
         print(f"{TextColors.FAIL}Error!{TextColors.ENDC}")
         for k, v in process_result.__dict__.items():
