@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import reduce
 from pprint import pprint
 import time
 from typing import (
@@ -27,6 +28,7 @@ from queue import Empty
 from time import sleep
 import signal
 from multiprocessing import Lock
+from utils import AllResults, print_results
 from queue_manager import (
     QueueWorkersManager,
     QueueWorkerResult,
@@ -153,17 +155,6 @@ def run(zip_dir, csv_file_1, csv_file_2):
                 append_csv_file_type_2(csv_file_2, parsed_xml_data)
 
 
-# class MonitoringWorker(Worker):
-#     def worker(self, data: Any, context: Any, *args) -> WorkerResult:
-#         return_context = dict(context)
-#         if isinstance(data, dict):
-#             for k,v in data.items():
-#                 return_context[k] = context.get(k, 0) + v
-#         else:
-#             return_context[data] = context.get(data, 0) + 1
-#         return WorkerResult(1, context=return_context)
-
-
 class CSVFile2ChunkedWorker(ChunkedWorker):
     def __init__(self, name: str, csv_file: str, max_chunk_size: int = 0):
         super().__init__(name, max_chunk_size)
@@ -198,14 +189,16 @@ class ParseXmlWorker(Worker):
         name: str,
         data_file_1_queue: multiprocessing.Queue,
         data_file_2_queue: multiprocessing.Queue,
+        number_extracted_objects_queue: multiprocessing.Queue,
     ):
         super().__init__(name)
         self.data_file_1_queue = data_file_1_queue
         self.data_file_2_queue = data_file_2_queue
+        self.number_extracted_objects_queue = number_extracted_objects_queue
 
     def worker(self, data: Any) -> WorkerResult:
         parsed_xml_data = parse_xml_file(data)
-        # monitoring_queue.put({"object_parsed":len(parsed_xml_data.object_names)})
+        self.number_extracted_objects_queue.put(len(parsed_xml_data.object_names))
         self.data_file_1_queue.put(
             DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
         )
@@ -219,45 +212,46 @@ class ParseXmlWorker(Worker):
         return WorkerResult(records_processed=1)
 
 
-def print_results(
-    xml_files_proceeded, csv_file_1, csv_file_1_records, csv_file_2, csv_file_2_records
-):
-    print(f"=======================================================================")
-    print(f"XML files processed {xml_files_proceeded}")
-    print(f"Records in {csv_file_1} stored {csv_file_1_records}")
-    print(f"Records in {csv_file_2} stored {csv_file_2_records}")
+class NumberExtractedObjectsWorker(Worker):
+    def __init__(self, name: str):
+        super().__init__(name)
+
+    def worker(self, data: Any) -> WorkerResult:
+        return WorkerResult(data)
 
 
 def put_xml_from_zip_files_in_queue(
     zip_dir: str,
     xml_data_queue: multiprocessing.Queue,
     # monitoring_queue: multiprocessing.Queue,
-):
+) -> AllResults:
+    total_zip_files = 0
+    total_xml_files = 0
+
     zip_files = get_zip_files(f"{zip_dir}/*.zip")
     for zip_file in zip_files:
         with zipfile.ZipFile(zip_file, mode="r") as zip:
             # monitoring_queue.put("zip_file_extracted")
             xml_files = get_xml_files(zip_file)
+            total_zip_files += 1
             for xml_file in xml_files:
                 # print(f"Zip file {zip_file}. Extracted XML file {xml_file}")
                 xml_data = xml_from_zip(zip, xml_file)
                 xml_data_queue.put(xml_data)
+                total_xml_files += 1
             #  monitoring_queue.put("xml_file_added")
-    return
+    return AllResults(total_zip_files, total_xml_files)
 
 
-def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
+def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
     create_csv_file_type_1(csv_file_1)
     create_csv_file_type_2(csv_file_2)
-
-    # original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-    # signal.signal(signal.SIGINT, original_sigint_handler)
 
     xml_data_queue = multiprocessing.Manager().Queue()
     data_file_1_queue = multiprocessing.Manager().Queue()
     data_file_2_queue = multiprocessing.Manager().Queue()
 
-    monitoring_queue = multiprocessing.Manager().Queue()
+    number_extracted_objects_queue = multiprocessing.Manager().Queue()
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     qm = QueueWorkersManager(multiprocessing.cpu_count())
@@ -268,9 +262,14 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
             name="parse_xml",
             data_file_1_queue=data_file_1_queue,
             data_file_2_queue=data_file_2_queue,
+            number_extracted_objects_queue=number_extracted_objects_queue,
         ),
-        on_finish_stop_queues=[data_file_1_queue, data_file_2_queue],
-        instances=1,
+        on_finish_stop_queues=[
+            data_file_1_queue,
+            data_file_2_queue,
+            number_extracted_objects_queue,
+        ],
+        instances=multiprocessing.cpu_count() // 2,
     )
 
     qm.register_worker(
@@ -286,48 +285,53 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2):
         ),
         instances=1,
     )
-    
+
+    qm.register_worker(
+        number_extracted_objects_queue,
+        NumberExtractedObjectsWorker(name="extracted_objects"),
+        instances=1,
+    )
+
     qm.start_workers(pool)
 
-    # global monitoring
-    # monitoring = MonitoringDataQueue(queue=monitoring_queue)
-    # monitoring_worker = MonitoringWorker()
-    # monitoring_job = pool.apply_async(
-    #     queue_manager, (monitoring_queue, monitoring_worker)
-    # )
-
-    # main_loop
     try:
-        put_xml_from_zip_files_in_queue(zip_dir, xml_data_queue,
-         # monitoring_queue,
-         )
+        print("Please wait while processing...")
+        
+        zip_extraction_results = put_xml_from_zip_files_in_queue(
+            zip_dir,
+            xml_data_queue,
+            # monitoring_queue,
+        )
 
-        qm._send_stop(xml_data_queue)
+        print("Zip files extracted")
+
+        qm.stop_worker_instances_for_queue(xml_data_queue)
 
         while not qm.workers_finished():
             continue
-
         results = qm.collect_results()
-        pprint(results)
 
-        # stop_queue(monitoring_queue)
-        # # monitoring_job.get()
-        # print(f"{monitoring_job.get()}")
+        if (
+            qm.get_worker_results(results, "csv_file_2").records_processed
+            != qm.get_worker_results(results, "extracted_objects").records_processed
+        ):
+            raise ValueError("Not all extracted csv objects were saved")
+
+        pool.close()
+        pool.join()
+
+        for worker_name in set(w.worker.name for w in qm.queue_workers ):
+            pprint(qm.get_worker_results(results, worker_name))
+
+        return AllResults(
+            total_zip_files=zip_extraction_results.total_zip_files,
+            total_xml_files=zip_extraction_results.total_xml_files,
+            total_objects=qm.get_worker_results(results, "csv_file_2"),
+        )
 
     except KeyboardInterrupt:
         print("Main Caught KeyboardInterrupt, terminating workers")
         pool.terminate()
-
-    pool.close()
-    pool.join()
-
-    # print_results(
-    #     xml_files_proceeded=jobs["parse_xml_worker"].get().records_processed,
-    #     csv_file_1=csv_file_1,
-    #     csv_file_1_records=jobs["save_file_1"].get().records_processed,
-    #     csv_file_2=csv_file_2,
-    #     csv_file_2_records=jobs["save_file_2"].get().records_processed,
-    # )
 
 
 if __name__ == "__main__":
