@@ -264,7 +264,8 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
             # monitoring_queue,
         )
 
-        print("Zip files extracted")
+        print(".. zip files extracted")
+        print(".. queues are being processed")
 
         qm.stop_worker_instances_for_queue(xml_data_queue)
 
@@ -287,6 +288,7 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
             csv_file_2_worker,
             extracted_objects_worker,
         ):
+            print("Workers stats:")
             pprint(qm.worker_results(results, worker))
 
         return OperationResult(
