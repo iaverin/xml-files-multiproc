@@ -12,8 +12,8 @@ import os
 from dataclasses import dataclass
 import csv
 import multiprocessing
-from utils import AllResults
-from queue_manager import (
+from .utils import AllResults
+from .queue_manager import (
     QueueWorkersManager,
     Worker,
     WorkerResult,
@@ -292,7 +292,7 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
         return AllResults(
             total_zip_files=zip_extraction_results.total_zip_files,
             total_xml_files=zip_extraction_results.total_xml_files,
-            total_objects=qm.worker_results(results, csv_file_2_worker),
+            total_objects=qm.worker_results(results, csv_file_2_worker).records_processed,
         )
 
     except KeyboardInterrupt:

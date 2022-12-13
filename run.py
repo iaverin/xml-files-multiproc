@@ -1,5 +1,7 @@
-import glob
 
+# from ngxmlzip import process
+# from ngxmlzip import create
+# from ngxmlzip.utils import AllResults
 from ngxmlzip import process
 from ngxmlzip import create
 
@@ -35,4 +37,5 @@ if __name__ == "__main__":
 
     print(f"All of {ZIP_FILES} zip files created in {ZIP_DIRECTORY}")
 
-    process.run(ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2)
+    process_result = process.run_multi_proc(ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2)
+    print(process_result)
