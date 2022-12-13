@@ -107,22 +107,3 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
         print("Main Caught KeyboardInterrupt, terminating workers")
         pool.terminate()
 
-
-if __name__ == "__main__":
-    # cProfile.run('run()')
-    ZIP_DIRECTORY = "zip-files"
-    if os.path.split(os.getcwd())[1].split(os.sep)[-1] == "ngxmlzip":
-        zip_dir = f"../{ZIP_DIRECTORY}"
-    else:
-        zip_dir = f"{ZIP_DIRECTORY}"
-
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    t_start = time.time()
-    run_multi_proc(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
-    t_finish = time.time()
-    print(f"Time spent {t_finish - t_start}")
-    # run(zip_dir, "csv_file_1.csv", "csv_file_2.csv")
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats("cumtime")
-    # stats.print_stats()

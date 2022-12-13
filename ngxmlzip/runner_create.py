@@ -81,30 +81,4 @@ def create_zip_files(
     )
 
 
-if __name__ == "__main__":
-    MAX_OBJECTS_IN_XML = 10
-    XML_FILES_IN_ZIP = 100
-    ZIP_FILES = 50
-    ZIP_DIRECTORY = "zip-files"
 
-    if not create_dir(ZIP_DIRECTORY):
-        exit()
-
-    number_of_created_zip_files = 0
-    try:
-        number_of_created_zip_files = create_zip_files(
-            MAX_OBJECTS_IN_XML,
-            XML_FILES_IN_ZIP,
-            ZIP_FILES,
-            ZIP_DIRECTORY,
-            lambda x: print(f"Created zip file {x}"),
-        )
-    except OSError as e:
-        print(f"Error saving zip file. \n Error: {e}")
-
-    if number_of_created_zip_files != ZIP_FILES:
-        print(
-            f"Not all zip files was created. Expected {ZIP_FILES}. Created {number_of_created_zip_files}"
-        )
-    else:
-        print(f"All of {ZIP_FILES} zip files created in {ZIP_DIRECTORY}")
