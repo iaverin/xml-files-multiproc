@@ -1,38 +1,20 @@
-from abc import ABC, abstractmethod
-from functools import reduce
 from pprint import pprint
 import time
 from typing import (
     Any,
-    Dict,
     List,
-    Iterable,
-    Iterator,
     Generator,
-    Callable,
-    Optional,
-    Tuple,
-    Union,
 )
 import glob
 import zipfile
 import xml.etree.ElementTree as ET
-import io
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import csv
-import cProfile
-import pstats
 import multiprocessing
-from queue import Empty
-from time import sleep
-import signal
-from multiprocessing import Lock
-from utils import AllResults, print_results
+from utils import AllResults
 from queue_manager import (
     QueueWorkersManager,
-    QueueWorkerResult,
-    QueueWorker,
     Worker,
     WorkerResult,
     ChunkedWorker,
