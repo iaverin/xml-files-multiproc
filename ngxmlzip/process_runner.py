@@ -15,8 +15,6 @@ import multiprocessing
 from .utils import OperationResult, XMLFile
 from .queue_manager import (
     QueueWorkersManager,
-    Worker,
-    WorkerResult,
 )
 from ngxmlzip.workers.parse_xml import ParseXMLWorker
 from ngxmlzip.workers.save_csv_files import CSVFile1Worker, CSVFile2ChunkedWorker
