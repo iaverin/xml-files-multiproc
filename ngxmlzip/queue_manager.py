@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import reduce
 import multiprocessing as mp
 from multiprocessing.pool import AsyncResult
 from queue import Empty
@@ -34,6 +35,20 @@ class ChunkedWorker(ABC):
 @dataclass
 class QueueWorkerResult:
     worker_name: str
+    errors: list[Exception]
+    total_worker_calls: int
+    successful_worker_calls: int
+    records_processed: int
+    max_queue_size: int
+    queue_size_on_start: int
+    max_chunk_size: int
+    context: dict = field(default_factory=dict)
+
+
+@dataclass
+class QueueAllWorkerInstancesResult:
+    worker_name: str
+    instances: int
     errors: list[Exception]
     total_worker_calls: int
     successful_worker_calls: int
@@ -194,3 +209,24 @@ class QueueWorkersManager:
     def stop_queues(self):
         for queues_worker in self.queue_workers:
             self._send_stop(queues_worker.queue)
+
+    def get_worker_results(self, qm_results: List[QueueWorkerResult], worker_name: str):
+        results = [r for r in qm_results if r.worker_name == worker_name]
+        return QueueAllWorkerInstancesResult(
+            worker_name=worker_name,
+            instances=len([w.worker_name for w in results]),
+            errors=reduce(lambda a, v: [e for e in v.errors], results, []),
+            total_worker_calls=reduce(
+                lambda a, v: a + v.total_worker_calls, results, 0
+            ),
+            successful_worker_calls=reduce(
+                lambda a, v: a + v.successful_worker_calls, results, 0
+            ),
+            records_processed=reduce(lambda a, v: a + v.records_processed, results, 0),
+            max_queue_size=reduce(lambda a, v: max(a, v.max_queue_size), results, 0),
+            queue_size_on_start=reduce(
+                lambda a, v: max(a, v.queue_size_on_start), results, 0
+            ),
+            max_chunk_size=reduce(lambda a, v: max(a, v.max_chunk_size), results, 0),
+            context={},
+        )
