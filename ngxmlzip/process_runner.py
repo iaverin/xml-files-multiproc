@@ -58,14 +58,6 @@ def create_csv_file_type_2(csv_file: str, delimiter=","):
         writer.writerow(["id", "object_name"])
 
 
-class NumberExtractedObjectsWorker(Worker):
-    def __init__(self, name: str):
-        super().__init__(name)
-
-    def worker(self, data: Any) -> WorkerResult:
-        return WorkerResult(data)
-
-
 def put_xml_from_zip_files_in_queue(
     zip_dir: str,
     xml_data_queue: multiprocessing.Queue,
@@ -99,8 +91,6 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
     data_file_1_queue = multiprocessing.Manager().Queue()
     data_file_2_queue = multiprocessing.Manager().Queue()
 
-    number_extracted_objects_queue = multiprocessing.Manager().Queue()
-
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     qm = QueueWorkersManager(multiprocessing.cpu_count())
 
@@ -108,7 +98,6 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
         name="parse_xml",
         data_file_1_queue=data_file_1_queue,
         data_file_2_queue=data_file_2_queue,
-        number_extracted_objects_queue=number_extracted_objects_queue,
     )
 
     qm.register_worker(
@@ -117,7 +106,6 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
         on_finish_stop_queues=[
             data_file_1_queue,
             data_file_2_queue,
-            number_extracted_objects_queue,
         ],
         instances=multiprocessing.cpu_count() // 2,
     )
@@ -133,13 +121,6 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
         name="csv_file_2", csv_file=csv_file_2, max_chunk_size=1000
     )
     qm.register_worker(data_file_2_queue, csv_file_2_worker, instances=1)
-
-    extracted_objects_worker = NumberExtractedObjectsWorker(name="extracted_objects")
-    qm.register_worker(
-        number_extracted_objects_queue,
-        extracted_objects_worker,
-        instances=1,
-    )
 
     qm.start_workers(pool)
 
@@ -161,12 +142,6 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
             continue
         results = qm.collect_results()
 
-        if (
-            qm.worker_results(results, csv_file_2_worker).records_processed
-            != qm.worker_results(results, extracted_objects_worker).records_processed
-        ):
-            raise ValueError("Not all extracted csv objects were saved")
-
         pool.close()
         pool.join()
 
@@ -174,7 +149,6 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
             parse_xml_worker,
             csv_file_1_worker,
             csv_file_2_worker,
-            extracted_objects_worker,
         ):
             print("Workers stats:")
             pprint(qm.worker_results(results, worker))

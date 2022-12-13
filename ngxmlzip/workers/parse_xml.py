@@ -32,12 +32,10 @@ class ParseXMLWorker(Worker):
         name: str,
         data_file_1_queue: multiprocessing.Queue,
         data_file_2_queue: multiprocessing.Queue,
-        number_extracted_objects_queue: multiprocessing.Queue,
     ):
         super().__init__(name)
         self.data_file_1_queue = data_file_1_queue
         self.data_file_2_queue = data_file_2_queue
-        self.number_extracted_objects_queue = number_extracted_objects_queue
 
     def worker(self, data: XMLFile) -> WorkerResult:
         if isinstance(data, XMLFile):
@@ -47,7 +45,6 @@ class ParseXMLWorker(Worker):
                 raise ValueError(
                     f"Could not parse XML in data in {data.zip_file}, {data.xml_file}. Error: {e}"
                 )
-            self.number_extracted_objects_queue.put(len(parsed_xml_data.object_names))
             self.data_file_1_queue.put(
                 DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
             )
