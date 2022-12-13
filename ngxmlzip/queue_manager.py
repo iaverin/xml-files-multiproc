@@ -215,12 +215,14 @@ class QueueWorkersManager:
             if queue == queues_worker.queue:
                 self._send_stop(queues_worker.queue)
 
-    def get_worker_results(self, qm_results: List[QueueWorkerResult], worker_name: str):
-        results = [r for r in qm_results if r.worker_name == worker_name]
+    def worker_results(
+        self, qm_results: List[QueueWorkerResult], worker: Worker | ChunkedWorker
+    ):
+        results = [r for r in qm_results if r.worker_name == worker.name]
         return QueueAllWorkerInstancesResult(
-            worker_name=worker_name,
+            worker_name=worker.name,
             instances=len([w.worker_name for w in results]),
-            errors=reduce(lambda a,v : a + [e for e in v.errors] , results, []),
+            errors=reduce(lambda a, v: a + [e for e in v.errors], results, []),
             total_worker_calls=reduce(
                 lambda a, v: a + v.total_worker_calls, results, 0
             ),

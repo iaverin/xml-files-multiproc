@@ -132,11 +132,11 @@ class TestQueueManager(unittest.TestCase):
 
         results = qm.collect_results()
 
-        producer_results: QueueAllWorkerInstancesResult = qm.get_worker_results(
-            results, "producer"
+        producer_results: QueueAllWorkerInstancesResult = qm.worker_results(
+            results, producer_worker
         )
-        consumer_results: QueueAllWorkerInstancesResult = qm.get_worker_results(
-            results, "consumer"
+        consumer_results: QueueAllWorkerInstancesResult = qm.worker_results(
+            results, consumer_worker
         )
 
         pool.close()
@@ -167,7 +167,7 @@ class TestQueueManager(unittest.TestCase):
         while not qm.workers_finished():
             continue
         results = qm.collect_results()
-        worker_results = qm.get_worker_results(results, "worker")
+        worker_results = qm.worker_results(results, worker)
         print(worker_results)
         self.assertEqual(50, len(worker_results.errors))
 
