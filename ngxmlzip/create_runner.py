@@ -5,7 +5,7 @@ import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable, Any
-from .utils import OperationResult
+from .data_types import OperationResult
 
 
 def random_string() -> str:

@@ -1,6 +1,6 @@
 import multiprocessing
 import xml.etree.ElementTree as ET
-from ..utils import DataCSVFile1, DataCSVFile2, XMLFile, ParsedXMLData
+from ..data_types import DataCSVFile1, DataCSVFile2, XMLFile, ParsedXMLData
 from ..queue_manager import Worker, WorkerResult
 
 

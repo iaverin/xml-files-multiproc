@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import csv
 import multiprocessing
 
-from .utils import OperationResult, XMLFile
+from .data_types import OperationResult, XMLFile
 from .queue_manager import (
     QueueWorkersManager,
 )

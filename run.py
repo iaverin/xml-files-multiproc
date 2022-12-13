@@ -1,7 +1,7 @@
 from pprint import pprint
 from ngxmlzip import process_runner
 from ngxmlzip import create_runner
-from ngxmlzip.utils import OperationResult
+from ngxmlzip.data_types import OperationResult
 from ngxmlzip.utils import TextColors
 
 MAX_OBJECTS_IN_XML = 10
