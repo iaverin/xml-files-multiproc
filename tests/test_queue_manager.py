@@ -40,6 +40,13 @@ class ChunkedConsumerWorker(ChunkedWorker):
         return WorkerResult(records_processed=records_processed)
 
 
+class ConsumerWorkerWithError(Worker):
+    def worker(self, data: Any) -> WorkerResult:
+        if data % 2 == 0:
+            raise ValueError(f"Error in worker {data}")
+        return WorkerResult(1)
+
+
 class TestQueueManager(unittest.TestCase):
     def test_create_worker(self):
         Q_SIZE = 100
@@ -124,36 +131,44 @@ class TestQueueManager(unittest.TestCase):
 
         results = qm.collect_results()
 
-        producer_total_calls = sum(
-            [pr.total_worker_calls for pr in results if pr.worker_name == "producer"]
+        producer_results: QueueAllWorkerInstancesResult = qm.worker_results(
+            results, producer_worker
         )
-        producer_records_processed = sum(
-            [pr.records_processed for pr in results if pr.worker_name == "producer"]
-        )
-        producer_max_chunk_size = max(
-            [pr.max_chunk_size for pr in results if pr.worker_name == "producer"]
-        )
-
-        consumer_total_calls = sum(
-            [pr.total_worker_calls for pr in results if pr.worker_name == "consumer"]
-        )
-        consumer_records_processed = sum(
-            [pr.records_processed for pr in results if pr.worker_name == "consumer"]
-        )
-        consumer_max_chunk_size = max(
-            [pr.max_chunk_size for pr in results if pr.worker_name == "producer"]
+        consumer_results: QueueAllWorkerInstancesResult = qm.worker_results(
+            results, consumer_worker
         )
 
         pool.close()
         pool.join()
 
-        self.assertEqual(Q_SIZE, producer_total_calls)
-        self.assertEqual(Q_SIZE, producer_records_processed)
-        self.assertEqual(1, producer_max_chunk_size)
+        self.assertEqual(Q_SIZE, producer_results.total_worker_calls)
+        self.assertEqual(Q_SIZE, producer_results.records_processed)
+        self.assertEqual(1, producer_results.max_chunk_size)
 
-        self.assertGreaterEqual(Q_SIZE, consumer_total_calls)
-        self.assertEqual(Q_SIZE, consumer_records_processed)
-        self.assertGreaterEqual(consumer_worker.max_chunk_size, consumer_max_chunk_size)
+        self.assertGreaterEqual(Q_SIZE, consumer_results.total_worker_calls)
+        self.assertEqual(Q_SIZE, consumer_results.records_processed)
+        self.assertGreaterEqual(
+            consumer_worker.max_chunk_size, consumer_results.max_chunk_size
+        )
+
+    def test_errors_collection(self):
+
+        Q_SIZE = 100
+        queue = mp.Manager().Queue()
+        worker = ConsumerWorkerWithError(name="worker")
+        pool = mp.Pool(mp.cpu_count())
+        qm = QueueWorkersManager(mp.cpu_count())
+        qm.register_worker(queue, worker, instances=2)
+        qm.start_workers(pool)
+        for i in range(0, Q_SIZE):
+            queue.put(i)
+        qm.stop_worker_instances_for_queue(queue)
+        while not qm.workers_finished():
+            continue
+        results = qm.collect_results()
+        worker_results = qm.worker_results(results, worker)
+        print(worker_results)
+        self.assertEqual(50, len(worker_results.errors))
 
 
 if __name__ == "__main__":
