@@ -210,6 +210,11 @@ class QueueWorkersManager:
         for queues_worker in self.queue_workers:
             self._send_stop(queues_worker.queue)
 
+    def stop_worker_instances_for_queue(self, queue):
+        for queues_worker in self.queue_workers:
+            if queue == queues_worker.queue:
+                self._send_stop(queues_worker.queue)
+
     def get_worker_results(self, qm_results: List[QueueWorkerResult], worker_name: str):
         results = [r for r in qm_results if r.worker_name == worker_name]
         return QueueAllWorkerInstancesResult(
