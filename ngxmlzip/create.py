@@ -5,7 +5,7 @@ import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable, Any
-
+from .utils import AllResults
 
 def random_string() -> str:
     return str(uuid.uuid4())
@@ -63,20 +63,26 @@ def create_zip_files(
     number_zip_files: int,
     zip_files_dir: str,
     log_created_file: Callable[[str], Any] = EMPTY_FUNC,
-) -> int:
+) -> AllResults:
     zip_files_created = 0
+    objects_created = 0
+    xml_files_created = 0
     for zip_file_index in range(1, number_zip_files + 1):
         zip_file_name = f"{zip_files_dir}/{str(zip_file_index)}.zip"
         with zipfile.ZipFile(zip_file_name, "w") as z:
             for i in range(1, xml_files_in_zip + 1):
+                xml_tree = create_xml_tree(objects_in_xml)
+
                 z.writestr(
                     zipfile.ZipInfo(f"{i}.xml"),
-                    generate_xml_file_data(create_xml_tree(objects_in_xml)),
+                    generate_xml_file_data(xml_tree),
                 )
+                objects_created += len(xml_tree.findall("./objects/object"))
+                xml_files_created += 1
             zip_files_created += 1
         if log_created_file != EMPTY_FUNC:
             log_created_file(f"{zip_file_name}")
-    return zip_files_created
+    return AllResults(total_zip_files=zip_files_created,total_xml_files=xml_files_created, total_objects=objects_created)
 
 
 if __name__ == "__main__":
