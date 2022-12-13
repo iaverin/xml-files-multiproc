@@ -8,6 +8,7 @@ from ngxmlzip.queue_manager import (
     WorkerResult,
     QueueWorkersManager,
     QueueWorkerResult,
+    QueueAllWorkerInstancesResult,
 )
 
 
@@ -124,36 +125,25 @@ class TestQueueManager(unittest.TestCase):
 
         results = qm.collect_results()
 
-        producer_total_calls = sum(
-            [pr.total_worker_calls for pr in results if pr.worker_name == "producer"]
+        producer_results: QueueAllWorkerInstancesResult = qm.get_worker_results(
+            results, "producer"
         )
-        producer_records_processed = sum(
-            [pr.records_processed for pr in results if pr.worker_name == "producer"]
-        )
-        producer_max_chunk_size = max(
-            [pr.max_chunk_size for pr in results if pr.worker_name == "producer"]
-        )
-
-        consumer_total_calls = sum(
-            [pr.total_worker_calls for pr in results if pr.worker_name == "consumer"]
-        )
-        consumer_records_processed = sum(
-            [pr.records_processed for pr in results if pr.worker_name == "consumer"]
-        )
-        consumer_max_chunk_size = max(
-            [pr.max_chunk_size for pr in results if pr.worker_name == "producer"]
+        consumer_results: QueueAllWorkerInstancesResult = qm.get_worker_results(
+            results, "consumer"
         )
 
         pool.close()
         pool.join()
 
-        self.assertEqual(Q_SIZE, producer_total_calls)
-        self.assertEqual(Q_SIZE, producer_records_processed)
-        self.assertEqual(1, producer_max_chunk_size)
+        self.assertEqual(Q_SIZE, producer_results.total_worker_calls)
+        self.assertEqual(Q_SIZE, producer_results.records_processed)
+        self.assertEqual(1, producer_results.max_chunk_size)
 
-        self.assertGreaterEqual(Q_SIZE, consumer_total_calls)
-        self.assertEqual(Q_SIZE, consumer_records_processed)
-        self.assertGreaterEqual(consumer_worker.max_chunk_size, consumer_max_chunk_size)
+        self.assertGreaterEqual(Q_SIZE, consumer_results.total_worker_calls)
+        self.assertEqual(Q_SIZE, consumer_results.records_processed)
+        self.assertGreaterEqual(
+            consumer_worker.max_chunk_size, consumer_results.max_chunk_size
+        )
 
 
 if __name__ == "__main__":
