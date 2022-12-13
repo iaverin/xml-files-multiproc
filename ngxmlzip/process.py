@@ -21,10 +21,6 @@ from queue_manager import (
 )
 
 
-def process(x):
-    print("ok")
-
-
 def get_zip_files(directory: str) -> List[str]:
     return glob.glob(directory)
 
@@ -102,23 +98,6 @@ def create_csv_file_type_2(csv_file: str, delimiter=","):
         writer.writerow(["id", "object_name"])
 
 
-def append_csv_file_type_1(csv_file: str, data: ParsedXMLData, delimiter=","):
-    with open(csv_file, "a", newline="") as csvfile:
-        writer = csv.writer(csvfile, delimiter=delimiter)
-        writer.writerow([data.id, data.level])
-    return 1
-
-
-def append_csv_file_type_2(csv_file: str, data: ParsedXMLData, delimiter=","):
-    records_stored = 0
-    with open(csv_file, "a", newline="") as csvfile:
-        writer = csv.writer(csvfile, delimiter=delimiter)
-        for object_name in data.object_names:
-            writer.writerow([data.id, object_name])
-            records_stored += 1
-    return records_stored
-
-
 class CSVFile2ChunkedWorker(ChunkedWorker):
     def __init__(self, name: str, csv_file: str, max_chunk_size: int = 0):
         super().__init__(name, max_chunk_size)
@@ -146,11 +125,13 @@ class CSVFile1Worker(Worker):
             writer.writerow([data.id, data.level])
             return WorkerResult(records_processed=1)
 
+
 @dataclass
 class XMLFile:
     zip_file: str
     xml_file: str
     xml_data: str
+
 
 class ParseXmlWorker(Worker):
     def __init__(
@@ -170,7 +151,9 @@ class ParseXmlWorker(Worker):
             try:
                 parsed_xml_data = parse_xml_file(data.xml_data)
             except ET.ParseError as e:
-                raise ValueError(f"Could not parse XML in data in {data.zip_file}, {data.xml_file}. Error: {e}")
+                raise ValueError(
+                    f"Could not parse XML in data in {data.zip_file}, {data.xml_file}. Error: {e}"
+                )
             self.number_extracted_objects_queue.put(len(parsed_xml_data.object_names))
             self.data_file_1_queue.put(
                 DataCSVFile1(id=parsed_xml_data.id, level=parsed_xml_data.level)
@@ -182,7 +165,9 @@ class ParseXmlWorker(Worker):
                 )
             )
             return WorkerResult(records_processed=1)
-        raise ValueError(f"Wrong data type {type(data)} format in xml data queue. Should be XMLFile")
+        raise ValueError(
+            f"Wrong data type {type(data)} format in xml data queue. Should be XMLFile"
+        )
 
 
 class NumberExtractedObjectsWorker(Worker):
@@ -210,7 +195,9 @@ def put_xml_from_zip_files_in_queue(
             for xml_file in xml_files:
                 # print(f"Zip file {zip_file}. Extracted XML file {xml_file}")
                 xml_data = xml_from_zip(zip, xml_file)
-                xml_data_queue.put(XMLFile(zip_file=zip_file, xml_file=xml_file, xml_data= xml_data))
+                xml_data_queue.put(
+                    XMLFile(zip_file=zip_file, xml_file=xml_file, xml_data=xml_data)
+                )
                 total_xml_files += 1
             #  monitoring_queue.put("xml_file_added")
     return AllResults(total_zip_files, total_xml_files)
@@ -230,14 +217,12 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
     qm = QueueWorkersManager(multiprocessing.cpu_count())
 
     parse_xml_worker = ParseXmlWorker(
-            name="parse_xml",
-            data_file_1_queue=data_file_1_queue,
-            data_file_2_queue=data_file_2_queue,
-            number_extracted_objects_queue=number_extracted_objects_queue,
-        )
-    
+        name="parse_xml",
+        data_file_1_queue=data_file_1_queue,
+        data_file_2_queue=data_file_2_queue,
+        number_extracted_objects_queue=number_extracted_objects_queue,
+    )
 
-    
     qm.register_worker(
         xml_data_queue,
         parse_xml_worker,
@@ -257,22 +242,22 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
     )
 
     csv_file_2_worker = CSVFile2ChunkedWorker(
-            name="csv_file_2", csv_file=csv_file_2, max_chunk_size=1000
-        )
+        name="csv_file_2", csv_file=csv_file_2, max_chunk_size=1000
+    )
     qm.register_worker(data_file_2_queue, csv_file_2_worker, instances=1)
-    
-    extracted_objects_worker = NumberExtractedObjectsWorker(name="extracted_objects") 
+
+    extracted_objects_worker = NumberExtractedObjectsWorker(name="extracted_objects")
     qm.register_worker(
-            number_extracted_objects_queue,
-            extracted_objects_worker,
-            instances=1,
-        )
+        number_extracted_objects_queue,
+        extracted_objects_worker,
+        instances=1,
+    )
 
     qm.start_workers(pool)
 
     try:
         print("Please wait while processing...")
-        
+
         zip_extraction_results = put_xml_from_zip_files_in_queue(
             zip_dir,
             xml_data_queue,
@@ -296,7 +281,12 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
         pool.close()
         pool.join()
 
-        for worker in (parse_xml_worker, csv_file_1_worker, csv_file_2_worker, extracted_objects_worker):
+        for worker in (
+            parse_xml_worker,
+            csv_file_1_worker,
+            csv_file_2_worker,
+            extracted_objects_worker,
+        ):
             pprint(qm.worker_results(results, worker))
 
         return AllResults(
