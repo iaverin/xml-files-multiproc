@@ -41,6 +41,7 @@ class QueueWorkerResult:
     records_processed: int
     max_queue_size: int
     queue_size_on_start: int
+    max_chunk_size: int
     context: dict = field(default_factory=dict)
 
 
@@ -121,6 +122,7 @@ class QueueWorkersManager:
             successful_worker_calls=0,
             records_processed=0,
             max_queue_size=0,
+            max_chunk_size = 0,  
             queue_size_on_start=queue.qsize(),
         )
 
@@ -143,6 +145,8 @@ class QueueWorkersManager:
                     worker_result = worker.worker(data, *args)
                     result.successful_worker_calls += 1
                     result.records_processed += worker_result.records_processed
+                    result.max_chunk_size = 1
+
 
                 if isinstance(worker, ChunkedWorker):
                     data_chunk = [data]
@@ -161,7 +165,8 @@ class QueueWorkersManager:
                     worker_result = worker.worker(data_chunk, *args)
                     result.successful_worker_calls += 1
                     result.records_processed += worker_result.records_processed
-
+                    if len(data_chunk) > result.max_chunk_size:
+                        result.max_chunk_size = len(data_chunk)
                     if has_stop_queue:
                         return result
 

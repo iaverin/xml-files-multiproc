@@ -67,15 +67,6 @@ class TestQueueManager(unittest.TestCase):
 
         results = qm.collect_results()
 
-        expected_producer_result = QueueWorkerResult(worker_name='producer',
-                   errors=[],
-                   total_worker_calls=100,
-                   successful_worker_calls=100,
-                   records_processed=0,
-                   max_queue_size=101,
-                   queue_size_on_start=101,
-                   context={})
-
         producer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'producer'])
         consumer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'consumer'])
         
@@ -120,25 +111,24 @@ class TestQueueManager(unittest.TestCase):
 
         results = qm.collect_results()
 
-        expected_producer_result = QueueWorkerResult(worker_name='producer',
-                   errors=[],
-                   total_worker_calls=100,
-                   successful_worker_calls=100,
-                   records_processed=0,
-                   max_queue_size=101,
-                   queue_size_on_start=101,
-                   context={})
-
         producer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'producer'])
+        producer_records_processed = sum ([pr.records_processed for pr in results if pr.worker_name == 'producer'])
+        producer_max_chunk_size = max ([pr.max_chunk_size for pr in results if pr.worker_name == 'producer'])
+
         consumer_total_calls = sum ([pr.total_worker_calls for pr in results if pr.worker_name == 'consumer'])
         consumer_records_processed = sum ([pr.records_processed for pr in results if pr.worker_name == 'consumer'])
+        consumer_max_chunk_size = max ([pr.max_chunk_size for pr in results if pr.worker_name == 'producer'])
 
         pool.close()
         pool.join()
 
         self.assertEqual(Q_SIZE, producer_total_calls)
+        self.assertEqual(Q_SIZE, producer_records_processed)
+        self.assertEqual(1, producer_max_chunk_size)
+
         self.assertGreaterEqual(Q_SIZE, consumer_total_calls)
         self.assertEqual(Q_SIZE, consumer_records_processed)
+        self.assertGreaterEqual(consumer_worker.max_chunk_size, consumer_max_chunk_size )
 
         
     
