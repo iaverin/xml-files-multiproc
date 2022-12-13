@@ -4,6 +4,7 @@ import multiprocessing as mp
 
 from ngxmlzip.queue_manager import (
     ChunkedWorker,
+    QueueAllWorkerInstancesResult,
     Worker,
     WorkerResult,
     QueueWorkersManager,
@@ -126,7 +127,6 @@ class TestQueueManager(unittest.TestCase):
         qm.stop_worker_instances(producer_worker)
 
         while not qm.workers_finished():
-            print("!!!!")
             continue
 
         results = qm.collect_results()
@@ -166,8 +166,10 @@ class TestQueueManager(unittest.TestCase):
         while not qm.workers_finished():
             continue
         results = qm.collect_results()
+        pool.close()
+        pool.join()
+
         worker_results = qm.worker_results(results, worker)
-        print(worker_results)
         self.assertEqual(50, len(worker_results.errors))
 
 
