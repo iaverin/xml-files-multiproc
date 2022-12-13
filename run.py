@@ -1,11 +1,10 @@
-
 # from ngxmlzip import process
 # from ngxmlzip import create
 # from ngxmlzip.utils import AllResults
 from pprint import pprint
 from ngxmlzip import process
 from ngxmlzip import create
-from ngxmlzip.utils import AllResults
+from ngxmlzip.utils import OperationResult
 
 MAX_OBJECTS_IN_XML = 10
 XML_FILES_IN_ZIP = 100
@@ -19,10 +18,9 @@ if __name__ == "__main__":
     if not create.create_dir(ZIP_DIRECTORY):
         exit()
 
-    number_of_created_zip_files = 0
-    create_result: AllResults = None
+    create_result: OperationResult = None
     try:
-        create_result =  create.create_zip_files(
+        create_result = create.create_zip_files(
             MAX_OBJECTS_IN_XML,
             XML_FILES_IN_ZIP,
             ZIP_FILES,
@@ -34,13 +32,16 @@ if __name__ == "__main__":
 
     if create_result.total_zip_files != ZIP_FILES:
         print(
-            f"Not all zip files was created. Expected {ZIP_FILES}. Created {number_of_created_zip_files}"
+            f"Not all zip files was created. Expected {ZIP_FILES}. Created {create_result.total_zip_files}"
         )
         exit()
 
     print(f"All of {ZIP_FILES} zip files created in {ZIP_DIRECTORY}")
     print("================ Create results  ========================")
     pprint(create_result)
-    print("================ Process result ========================")
+    print("================ Process result =========================")
     process_result = process.run_multi_proc(ZIP_DIRECTORY, CSV_FILE_1, CSV_FILE_2)
     pprint(process_result)
+
+    if create_result == process_result:
+        print("All Ok")

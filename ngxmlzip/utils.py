@@ -2,10 +2,11 @@ from dataclasses import dataclass
 
 
 @dataclass
-class AllResults:
+class OperationResult:
     total_zip_files: int = 0
     total_xml_files: int = 0
     total_objects: int = 0
+
 
 def print_results(
     total_zip_files: int,

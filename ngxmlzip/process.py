@@ -12,7 +12,7 @@ import os
 from dataclasses import dataclass
 import csv
 import multiprocessing
-from .utils import AllResults
+from .utils import OperationResult
 from .queue_manager import (
     QueueWorkersManager,
     Worker,
@@ -182,7 +182,7 @@ def put_xml_from_zip_files_in_queue(
     zip_dir: str,
     xml_data_queue: multiprocessing.Queue,
     # monitoring_queue: multiprocessing.Queue,
-) -> AllResults:
+) -> OperationResult:
     total_zip_files = 0
     total_xml_files = 0
 
@@ -200,10 +200,10 @@ def put_xml_from_zip_files_in_queue(
                 )
                 total_xml_files += 1
             #  monitoring_queue.put("xml_file_added")
-    return AllResults(total_zip_files, total_xml_files)
+    return OperationResult(total_zip_files, total_xml_files)
 
 
-def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
+def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> OperationResult:
     create_csv_file_type_1(csv_file_1)
     create_csv_file_type_2(csv_file_2)
 
@@ -289,10 +289,12 @@ def run_multi_proc(zip_dir, csv_file_1, csv_file_2) -> AllResults:
         ):
             pprint(qm.worker_results(results, worker))
 
-        return AllResults(
+        return OperationResult(
             total_zip_files=zip_extraction_results.total_zip_files,
             total_xml_files=zip_extraction_results.total_xml_files,
-            total_objects=qm.worker_results(results, csv_file_2_worker).records_processed,
+            total_objects=qm.worker_results(
+                results, csv_file_2_worker
+            ).records_processed,
         )
 
     except KeyboardInterrupt:
