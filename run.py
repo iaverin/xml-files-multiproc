@@ -1,3 +1,4 @@
+import os
 from pprint import pprint
 from ngxmlzip import runner_process
 from ngxmlzip import runner_create
@@ -13,6 +14,8 @@ CSV_FILE_2 = "csv_file_2.csv"
 
 
 if __name__ == "__main__":
+    os.system("") # enable colors in cmd terminal
+    
     if not runner_create.create_dir(ZIP_DIRECTORY):
         print(
             f"{TextColors.FAIL}directory {ZIP_DIRECTORY} could not be created!{TextColors.ENDC}"
