@@ -5,7 +5,9 @@ import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Callable, Any
-from .utils import OperationResult
+
+from ngxmlzip.utils.files import create_dir
+from .data_types import OperationResult
 
 
 def random_string() -> str:
@@ -43,22 +45,11 @@ def generate_xml_file_data(tree: ET.ElementTree) -> str:
     return xml_file
 
 
-def create_dir(dir) -> bool:
-    try:
-        os.mkdir(dir)
-        return True
-    except FileExistsError:
-        return True
-    except OSError as e:
-        print(f"Could not create directory {dir}. \n Error: {e}")
-        return False
-
-
 def EMPTY_FUNC(x):
     pass
 
 
-def create_zip_files(
+def run_create_zip_files(
     objects_in_xml: int,
     xml_files_in_zip: int,
     number_zip_files: int,
@@ -88,32 +79,3 @@ def create_zip_files(
         total_xml_files=xml_files_created,
         total_objects=objects_created,
     )
-
-
-if __name__ == "__main__":
-    MAX_OBJECTS_IN_XML = 10
-    XML_FILES_IN_ZIP = 100
-    ZIP_FILES = 50
-    ZIP_DIRECTORY = "zip-files"
-
-    if not create_dir(ZIP_DIRECTORY):
-        exit()
-
-    number_of_created_zip_files = 0
-    try:
-        number_of_created_zip_files = create_zip_files(
-            MAX_OBJECTS_IN_XML,
-            XML_FILES_IN_ZIP,
-            ZIP_FILES,
-            ZIP_DIRECTORY,
-            lambda x: print(f"Created zip file {x}"),
-        )
-    except OSError as e:
-        print(f"Error saving zip file. \n Error: {e}")
-
-    if number_of_created_zip_files != ZIP_FILES:
-        print(
-            f"Not all zip files was created. Expected {ZIP_FILES}. Created {number_of_created_zip_files}"
-        )
-    else:
-        print(f"All of {ZIP_FILES} zip files created in {ZIP_DIRECTORY}")
